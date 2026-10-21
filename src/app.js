@@ -71,10 +71,20 @@ const state = {
 };
 
 function getRiskColor(score) {
-  if (score >= 85) return "#b91c1c";
-  if (score >= 55) return "#b45309";
-  if (score >= 25) return "#0b5ed7";
-  return "#146c43";
+  if (score >= 85) return "#DC2626";
+  if (score >= 55) return "#D97706";
+  if (score >= 25) return "#B45309";
+  return "#047857";
+}
+
+function getStreamSvgIcon(stream) {
+  if (stream === "RECYCLE_CART" || stream === "GREEN_WASTE") {
+    return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+  }
+  if (stream === "SPLIT_DISPOSAL") {
+    return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>`;
+  }
+  return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
 }
 
 function escapeHtml(value) {
@@ -85,36 +95,97 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function triggerLaserSweep() {
+  const deck = document.getElementById("scanner-deck");
+  const resultCard = document.getElementById("result-panel-card");
+  if (deck) {
+    deck.classList.remove("scanning");
+    void deck.offsetWidth;
+    deck.classList.add("scanning");
+  }
+  if (resultCard) {
+    resultCard.classList.remove("gate-snap");
+    void resultCard.offsetWidth;
+    resultCard.classList.add("gate-snap");
+  }
+}
+
+function renderBarcodeMathStrip(rawBarcode) {
+  const stripEl = document.getElementById("barcode-math-strip");
+  if (!stripEl) return;
+
+  if (!rawBarcode || !rawBarcode.trim()) {
+    stripEl.innerHTML = `<span class="math-chip">GS1 ENGINE IDLE // SELECT RESIN OR ENTER 12-DIGIT UPC</span>`;
+    return;
+  }
+
+  const check = validateBarcodeCheckDigit(rawBarcode);
+  if (!check.valid) {
+    stripEl.innerHTML = `
+      <span class="math-chip math-chip-err">FORMAT: ${escapeHtml(check.format)}</span>
+      <span class="math-chip math-chip-err">EXPECTED CHECK: ${check.expectedCheckDigit ?? "N/A"}</span>
+      <span class="math-chip math-chip-err">ACTUAL: ${check.actualCheckDigit ?? "N/A"}</span>
+    `;
+    return;
+  }
+
+  const payload = check.normalized.slice(0, -1);
+  stripEl.innerHTML = `
+    <span class="math-chip">FORMAT: <strong>${escapeHtml(check.format)}</strong></span>
+    <span class="math-chip">PAYLOAD: <strong>${escapeHtml(payload)}</strong></span>
+    <span class="math-chip">MOD-10 CHECK: <strong>${check.actualCheckDigit}</strong></span>
+    ${check.ean13 ? `<span class="math-chip">EAN-13: <strong>${escapeHtml(check.ean13)}</strong></span>` : ""}
+  `;
+}
+
+function renderContaminationGauge(score, tier, mrfFailureMode) {
+  const riskColor = getRiskColor(score);
+  return `
+    <div class="risk-meter-box">
+      <div class="risk-meter-top">
+        <span>MRF Contamination Risk Gauge</span>
+        <span class="tabular risk-score-readout" style="color: ${riskColor};">${score}/100 // ${escapeHtml(tier)}</span>
+      </div>
+      <div class="risk-bar-track" role="meter" aria-valuenow="${score}" aria-valuemin="0" aria-valuemax="100" aria-label="MRF Contamination Risk Score">
+        <div class="risk-bar-fill" style="width: ${score}%; background: ${riskColor};"></div>
+        <span class="gauge-tick" style="left: 25%;" title="Moderate Threshold (25)"></span>
+        <span class="gauge-tick" style="left: 55%;" title="High Threshold (55)"></span>
+        <span class="gauge-tick" style="left: 85%;" title="Critical Rejection Threshold (85)"></span>
+      </div>
+      <div class="gauge-scale-labels tabular">
+        <span>0 LOW</span>
+        <span>25 MOD</span>
+        <span>55 HIGH</span>
+        <span>85+ REJECT</span>
+      </div>
+      <p class="mrf-note"><strong>Sorting Facility Physics:</strong> ${escapeHtml(mrfFailureMode)}</p>
+    </div>
+  `;
+}
+
 function renderSingleEvaluation(ev) {
-  const riskColor = getRiskColor(ev.contaminationRiskScore);
   const stepsHtml = ev.prepSteps
     .map((s) => `<li>${escapeHtml(s)}</li>`)
     .join("");
 
   const resinBadge = ev.resinInfo
-    ? `<p class="eval-jurisdiction"><strong>Polymer Code:</strong> ${escapeHtml(ev.resinInfo.symbol)} (${escapeHtml(ev.resinInfo.polymer)})</p>`
+    ? `<p class="eval-jurisdiction tabular"><strong>Polymer Stamp:</strong> ${escapeHtml(ev.resinInfo.symbol)} (${escapeHtml(ev.resinInfo.polymer)})</p>`
     : "";
 
   return `
     <div class="eval-header">
       <div>
         <h3 class="eval-title">${escapeHtml(ev.itemTitle)}</h3>
-        <p class="eval-jurisdiction">${escapeHtml(ev.cityName)} | ${escapeHtml(ev.operator)}</p>
+        <p class="eval-jurisdiction">${escapeHtml(ev.cityName)} // ${escapeHtml(ev.operator)}</p>
         ${resinBadge}
       </div>
-      <span class="stream-badge stream-${escapeHtml(ev.stream)}">${escapeHtml(ev.badgeLabel)}</span>
+      <span class="stream-badge stream-${escapeHtml(ev.stream)}">
+        ${getStreamSvgIcon(ev.stream)}
+        <span>${escapeHtml(ev.badgeLabel)}</span>
+      </span>
     </div>
 
-    <div class="risk-meter-box">
-      <div class="risk-meter-top">
-        <span>MRF Contamination Risk Score</span>
-        <span>${ev.contaminationRiskScore}/100 (${escapeHtml(ev.contaminationTier)})</span>
-      </div>
-      <div class="risk-bar-track">
-        <div class="risk-bar-fill" style="width: ${ev.contaminationRiskScore}%; background: ${riskColor};"></div>
-      </div>
-      <p class="mrf-note"><strong>Sorting Facility Physics:</strong> ${escapeHtml(ev.mrfFailureMode)}</p>
-    </div>
+    ${renderContaminationGauge(ev.contaminationRiskScore, ev.contaminationTier, ev.mrfFailureMode)}
 
     <div class="eval-section">
       <h4>Required Household Preparation Steps</h4>
@@ -122,10 +193,10 @@ function renderSingleEvaluation(ev) {
     </div>
 
     <div class="dropoff-card">
-      <div><strong>Local Drop-Off &amp; Ordinance Guidance:</strong> ${escapeHtml(ev.dropOffNote)}</div>
-      <div style="margin-top: 0.35rem;"><strong>Primary Facility:</strong> ${escapeHtml(ev.dropOffFacility.name)} (${escapeHtml(ev.dropOffFacility.address)})</div>
-      <div><strong>Plastic Film Return:</strong> ${escapeHtml(ev.dropOffFacility.retailBagDropOff)}</div>
-      <div style="margin-top: 0.35rem;"><strong>Sugar Land vs. Houston Rule Comparison:</strong> ${escapeHtml(ev.cityDivergenceNote)}</div>
+      <div class="dropoff-row"><strong>Local Drop-Off &amp; Ordinance Guidance:</strong> ${escapeHtml(ev.dropOffNote)}</div>
+      <div class="dropoff-row tabular"><strong>Primary Facility:</strong> ${escapeHtml(ev.dropOffFacility.name)} (${escapeHtml(ev.dropOffFacility.address)})</div>
+      <div class="dropoff-row"><strong>Plastic Film Return:</strong> ${escapeHtml(ev.dropOffFacility.retailBagDropOff)}</div>
+      <div class="dropoff-row divergence-callout"><strong>Sugar Land vs. Houston Rule Comparison:</strong> ${escapeHtml(ev.cityDivergenceNote)}</div>
     </div>
   `;
 }
@@ -140,7 +211,8 @@ function renderComparisonView(comp) {
         <p class="eval-jurisdiction">Side-by-Side Municipal Ordinance Comparison (Sugar Land vs. Houston)</p>
       </div>
       <span class="stream-badge stream-${comp.sameStream ? escapeHtml(sl.stream) : "SPLIT_DISPOSAL"}">
-        ${comp.sameStream ? "Aligned Stream Rules" : "Jurisdiction Rule Divergence"}
+        ${getStreamSvgIcon(comp.sameStream ? sl.stream : "SPLIT_DISPOSAL")}
+        <span>${comp.sameStream ? "Aligned Stream Rules" : `Rule Divergence (Delta ${comp.riskDelta} pts)`}</span>
       </span>
     </div>
 
@@ -151,23 +223,35 @@ function renderComparisonView(comp) {
 
     <div class="compare-columns">
       <div class="compare-col">
-        <h4>City of Sugar Land, TX</h4>
-        <span class="stream-badge stream-${escapeHtml(sl.stream)}">${escapeHtml(sl.badgeLabel)}</span>
-        <p style="font-size:0.84rem; margin:0.5rem 0;"><strong>Contamination Risk:</strong> ${sl.contaminationRiskScore}/100 (${escapeHtml(sl.contaminationTier)})</p>
+        <div class="compare-col-head">
+          <h4>City of Sugar Land, TX</h4>
+          <span class="mono-tag tabular">FORT BEND</span>
+        </div>
+        <span class="stream-badge stream-${escapeHtml(sl.stream)}">
+          ${getStreamSvgIcon(sl.stream)}
+          <span>${escapeHtml(sl.badgeLabel)}</span>
+        </span>
+        <p class="compare-risk-line tabular"><strong>Contamination Risk:</strong> ${sl.contaminationRiskScore}/100 (${escapeHtml(sl.contaminationTier)})</p>
         <ul class="prep-list">
           ${sl.prepSteps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}
         </ul>
-        <p style="font-size:0.82rem; margin-top:0.5rem; color:#496153;"><strong>Facility:</strong> ${escapeHtml(sl.dropOffFacility.name)}, ${escapeHtml(sl.dropOffFacility.address)}</p>
+        <p class="compare-facility-line tabular"><strong>Facility:</strong> ${escapeHtml(sl.dropOffFacility.name)}, ${escapeHtml(sl.dropOffFacility.address)}</p>
       </div>
 
       <div class="compare-col">
-        <h4>City of Houston, TX</h4>
-        <span class="stream-badge stream-${escapeHtml(ho.stream)}">${escapeHtml(ho.badgeLabel)}</span>
-        <p style="font-size:0.84rem; margin:0.5rem 0;"><strong>Contamination Risk:</strong> ${ho.contaminationRiskScore}/100 (${escapeHtml(ho.contaminationTier)})</p>
+        <div class="compare-col-head">
+          <h4>City of Houston, TX</h4>
+          <span class="mono-tag tabular">SWMD / FCC</span>
+        </div>
+        <span class="stream-badge stream-${escapeHtml(ho.stream)}">
+          ${getStreamSvgIcon(ho.stream)}
+          <span>${escapeHtml(ho.badgeLabel)}</span>
+        </span>
+        <p class="compare-risk-line tabular"><strong>Contamination Risk:</strong> ${ho.contaminationRiskScore}/100 (${escapeHtml(ho.contaminationTier)})</p>
         <ul class="prep-list">
           ${ho.prepSteps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}
         </ul>
-        <p style="font-size:0.82rem; margin-top:0.5rem; color:#496153;"><strong>Facility:</strong> ${escapeHtml(ho.dropOffFacility.name)}, ${escapeHtml(ho.dropOffFacility.address)}</p>
+        <p class="compare-facility-line tabular"><strong>Facility:</strong> ${escapeHtml(ho.dropOffFacility.name)}, ${escapeHtml(ho.dropOffFacility.address)}</p>
       </div>
     </div>
   `;
@@ -180,20 +264,20 @@ function renderBatchSimulator() {
   const containerEl = document.getElementById("batch-items-container");
 
   if (summary.itemCount === 0) {
-    badgeEl.className = "stream-badge stream-SPLIT_DISPOSAL";
+    badgeEl.className = "stream-badge stream-SPLIT_DISPOSAL tabular";
     badgeEl.textContent = "Cart Empty (0 Items)";
-    containerEl.innerHTML = `<p style="font-size:0.88rem; color:#496153;">Use "+ Add Current Item to Virtual Cart Load" to test how a single tangler or battery affects an otherwise clean recycling bin.</p>`;
+    containerEl.innerHTML = `<p class="empty-batch-msg">Use "Add Current Item to Virtual Cart Load" to test how a single tangler or battery affects an otherwise clean recycling bin.</p>`;
     return;
   }
 
   if (summary.loadStatus === "CLEAN_CURBSIDE_LOAD") {
-    badgeEl.className = "stream-badge stream-RECYCLE_CART";
+    badgeEl.className = "stream-badge stream-RECYCLE_CART tabular";
     badgeEl.textContent = `Clean Curbside Load (Avg Risk ${summary.averageRiskScore}/100)`;
   } else if (summary.loadStatus === "NEEDS_SORTING_FIXES") {
-    badgeEl.className = "stream-badge stream-SPLIT_DISPOSAL";
+    badgeEl.className = "stream-badge stream-SPLIT_DISPOSAL tabular";
     badgeEl.textContent = `Preparation Needed (Max Risk ${summary.maxRiskScore}/100)`;
   } else {
-    badgeEl.className = "stream-badge stream-SPECIAL_DROPOFF";
+    badgeEl.className = "stream-badge stream-SPECIAL_DROPOFF tabular";
     badgeEl.textContent = `Contaminated Load Alert (${summary.criticalHazards.length} Hazard/Tangler Item${summary.criticalHazards.length === 1 ? "" : "s"})`;
   }
 
@@ -201,12 +285,12 @@ function renderBatchSimulator() {
     .map(
       (ev, idx) => `
       <div class="batch-chip">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem;">
+        <div class="batch-chip-top">
           <strong>${escapeHtml(ev.itemTitle)}</strong>
           <button type="button" class="text-btn" data-remove-batch="${idx}">Remove</button>
         </div>
-        <span>Stream: <strong>${escapeHtml(ev.badgeLabel)}</strong></span>
-        <span>Contamination Score: ${ev.contaminationRiskScore}/100 (${escapeHtml(ev.contaminationTier)})</span>
+        <span class="batch-chip-meta">Stream: <strong>${escapeHtml(ev.badgeLabel)}</strong></span>
+        <span class="batch-chip-meta tabular">Contamination Score: <strong>${ev.contaminationRiskScore}/100</strong> (${escapeHtml(ev.contaminationTier)})</span>
       </div>
     `
     )
@@ -244,19 +328,21 @@ function updateUI() {
   if (state.barcode) {
     const lookup = lookupProductByBarcode(state.barcode);
     if (!lookup.validation.valid) {
-      barcodeStatus.className = "barcode-status invalid";
+      barcodeStatus.className = "barcode-status invalid tabular";
       barcodeStatus.textContent = lookup.validation.reason;
     } else if (lookup.found) {
-      barcodeStatus.className = "barcode-status valid";
+      barcodeStatus.className = "barcode-status valid tabular";
       barcodeStatus.textContent = `${lookup.validation.reason} Matched: ${lookup.product.productName} (${lookup.product.packagingSummary}).`;
     } else {
-      barcodeStatus.className = "barcode-status valid";
+      barcodeStatus.className = "barcode-status valid tabular";
       barcodeStatus.textContent = `${lookup.validation.reason} Custom product UPC; evaluating using selected material/resin rule.`;
     }
   } else {
-    barcodeStatus.className = "barcode-status";
+    barcodeStatus.className = "barcode-status tabular";
     barcodeStatus.textContent = "Enter any 12-digit UPC-A or 13-digit EAN-13 barcode, or choose a material category below.";
   }
+
+  renderBarcodeMathStrip(state.barcode);
 
   const query = {
     barcode: state.barcode,
@@ -294,6 +380,7 @@ function applyBarcodeSelection(rawUpc) {
     state.materialId = lookup.product.materialId;
     state.resinCode = lookup.product.resinCode;
   }
+  triggerLaserSweep();
   updateUI();
 }
 
@@ -303,7 +390,7 @@ async function startCameraBarcodeScan() {
   const statusEl = document.getElementById("barcode-status");
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    statusEl.className = "barcode-status invalid";
+    statusEl.className = "barcode-status invalid tabular";
     statusEl.textContent = "Camera API unavailable in this browser context; use keyboard UPC entry or the verified Texas catalog dropdown.";
     return;
   }
@@ -338,11 +425,11 @@ async function startCameraBarcodeScan() {
         }
       }, 450);
     } else {
-      statusEl.className = "barcode-status valid";
+      statusEl.className = "barcode-status valid tabular";
       statusEl.textContent = "Camera preview active. Enter the printed 12-digit UPC code in the field above.";
     }
   } catch {
-    statusEl.className = "barcode-status invalid";
+    statusEl.className = "barcode-status invalid tabular";
     statusEl.textContent = "Camera permission declined or unavailable; use direct UPC input or select from the 28 verified barcodes.";
   }
 }
@@ -360,6 +447,7 @@ function bindEvents() {
   document.querySelectorAll(".city-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.cityMode = btn.getAttribute("data-city-mode");
+      triggerLaserSweep();
       updateUI();
     });
   });
@@ -377,6 +465,7 @@ function bindEvents() {
         state.cityMode = scenario.forceMode;
       }
       document.getElementById("catalog-select").value = scenario.barcode || "";
+      triggerLaserSweep();
       updateUI();
     });
   });
@@ -408,6 +497,7 @@ function bindEvents() {
       state.resinCode = rCode;
       state.materialId = meta.defaultMaterialId;
       document.getElementById("catalog-select").value = "";
+      triggerLaserSweep();
       updateUI();
     });
   });
@@ -418,11 +508,13 @@ function bindEvents() {
     const matchResin = e.target.value.match(/^resin-(\d)/);
     state.resinCode = matchResin ? Number(matchResin[1]) : null;
     document.getElementById("catalog-select").value = "";
+    triggerLaserSweep();
     updateUI();
   });
 
   document.getElementById("condition-select").addEventListener("change", (e) => {
     state.condition = e.target.value;
+    triggerLaserSweep();
     updateUI();
   });
 
