@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BinCheck | Sugar Land &amp; Houston Municipal Recycling &amp; Barcode Rules Engine</title>
+  <meta name="description" content="Verify item recyclability across City of Sugar Land (Republic Services / Fort Bend County) and City of Houston (SWMD) ordinances using GS1 UPC barcodes, SPI resin codes #1-#7, and MRF contamination physics." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="site-header no-print">
+    <div class="container header-inner">
+      <div class="brand-block">
+        <h1 class="site-title">BinCheck</h1>
+        <p class="site-subtitle">Verified Houston &amp; Sugar Land Municipal Recycling, Resin Code (#1-#7) &amp; GS1 Barcode Rules Engine</p>
+      </div>
+      <div class="header-actions">
+        <div class="city-switcher" role="group" aria-label="Jurisdiction Mode">
+          <button type="button" class="city-btn active" data-city-mode="sugar-land-tx">Sugar Land, TX</button>
+          <button type="button" class="city-btn" data-city-mode="houston-tx">Houston, TX</button>
+          <button type="button" class="city-btn" data-city-mode="compare">Side-by-Side Comparison</button>
+        </div>
+        <button type="button" id="print-cheatsheet-btn" class="secondary-btn">Print 1-Page Kitchen Guide</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-layout">
+    <section class="demo-bar card no-print" aria-labelledby="quick-demo-heading">
+      <div class="demo-header">
+        <h2 id="quick-demo-heading">One-Tap Instant Scenarios</h2>
+        <span class="demo-hint">Select a common household item to inspect municipal rules and MRF physics immediately:</span>
+      </div>
+      <div class="demo-buttons">
+        <button type="button" class="demo-pill" data-demo="pet-bottle">Try #1 PET Water Bottle</button>
+        <button type="button" class="demo-pill" data-demo="pizza-box">Try Greasy Pizza Box</button>
+        <button type="button" class="demo-pill" data-demo="glass-jar">Try Glass Jar (Sugar Land vs Houston)</button>
+        <button type="button" class="demo-pill" data-demo="plastic-bag">Try Plastic Grocery Bag</button>
+        <button type="button" class="demo-pill" data-demo="lithium-battery">Try Lithium Battery</button>
+        <button type="button" class="demo-pill" data-demo="styrofoam">Try #6 Styrofoam Cup</button>
+        <button type="button" class="demo-pill" data-demo="yard-waste">Try Yard Trimmings Bag</button>
+      </div>
+    </section>
+
+    <div class="workspace-grid no-print">
+      <section class="card controls-panel" aria-labelledby="lookup-heading">
+        <h2 id="lookup-heading">Barcode, Resin Code &amp; Material Inspector</h2>
+
+        <div class="control-group">
+          <label for="barcode-input" class="field-label">GS1 Barcode Lookup (UPC-A 12-Digit or EAN-13)</label>
+          <div class="barcode-row">
+            <input
+              id="barcode-input"
+              type="text"
+              inputmode="numeric"
+              placeholder="e.g. 041220576463 (H-E-B Spring Water)"
+              autocomplete="off"
+            />
+            <button type="button" id="barcode-scan-btn" class="primary-btn">Verify UPC</button>
+            <button type="button" id="camera-scan-btn" class="secondary-btn" title="Scan barcode with device camera">Camera Scan</button>
+          </div>
+          <div id="barcode-status" class="barcode-status" aria-live="polite"></div>
+          <div id="camera-preview-wrap" class="camera-preview-wrap hidden">
+            <video id="camera-video" playsinline muted></video>
+            <button type="button" id="camera-close-btn" class="secondary-btn">Stop Camera</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="catalog-select" class="field-label">Or Pick from 28 Verified Texas Grocery &amp; Household Barcodes</label>
+          <select id="catalog-select" class="select-input">
+            <option value="">-- Select a verified Texas product barcode --</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <span class="field-label">SPI Plastic Resin Identification Code (#1 to #7)</span>
+          <div class="resin-grid" role="group" aria-label="SPI Resin Codes">
+            <button type="button" class="resin-btn active" data-resin="1">
+              <span class="resin-num">#1</span>
+              <span class="resin-name">PETE</span>
+            </button>
+            <button type="button" class="resin-btn" data-resin="2">
+              <span class="resin-num">#2</span>
+              <span class="resin-name">HDPE</span>
+            </button>
+            <button type="button" class="resin-btn" data-resin="3">
+              <span class="resin-num">#3</span>
+              <span class="resin-name">PVC</span>
+            </button>
+            <button type="button" class="resin-btn" data-resin="4">
+              <span class="resin-num">#4</span>
+              <span class="resin-name">LDPE</span>
+            </button>
+            <button type="button" class="resin-btn" data-resin="5">
+              <span class="resin-num">#5</span>
+              <span class="resin-name">PP</span>
+            </button>
+            <button type="button" class="resin-btn" data-resin="6">
+              <span class="resin-num">#6</span>
+              <span class="resin-name">PS Foam</span>
+            </button>
+            <button type="button" class="resin-btn" data-resin="7">
+              <span class="resin-num">#7</span>
+              <span class="resin-name">Other</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="control-row-split">
+          <div class="control-group">
+            <label for="material-select" class="field-label">Material / Item Category</label>
+            <select id="material-select" class="select-input">
+              <option value="resin-1-pet">#1 PET Plastic Bottle / Jug</option>
+              <option value="resin-2-hdpe">#2 HDPE Milk or Detergent Jug</option>
+              <option value="resin-3-pvc">#3 PVC Vinyl Packaging / Pipe</option>
+              <option value="resin-4-ldpe-film">Plastic Grocery Bag / #4 Film</option>
+              <option value="resin-5-pp">#5 Polypropylene Yogurt / Takeout Tub</option>
+              <option value="resin-6-ps-foam">#6 Polystyrene / Styrofoam Cup</option>
+              <option value="resin-7-other">#7 Multi-Layer Pouch / PLA Cup</option>
+              <option value="glass-jar-bottle">Clean Glass Bottle or Food Jar</option>
+              <option value="broken-glass-ceramic">Broken Glass, Ceramic Mug, or Pyrex</option>
+              <option value="aluminum-steel-can">Aluminum Beverage or Steel Soup Can</option>
+              <option value="soiled-foil-tray">Aluminum Foil or Foil Baking Pan</option>
+              <option value="clean-cardboard-paper">Clean Flattened Cardboard / Paper</option>
+              <option value="greasy-pizza-box">Greasy Corrugated Pizza Box</option>
+              <option value="lithium-household-battery">Lithium-Ion or Household Battery</option>
+              <option value="electronics-ewaste">Electronics, Chargers, or Power Cords</option>
+              <option value="yard-trimmings-brush">Yard Trimmings, Leaves &amp; Grass</option>
+              <option value="liquid-full-bottle">Half-Full Beverage Bottle with Liquid</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="condition-select" class="field-label">Item Condition</label>
+            <select id="condition-select" class="select-input">
+              <option value="clean">Empty, Clean &amp; Dry</option>
+              <option value="greasy">Food or Grease Stained</option>
+              <option value="liquid-full">Still Contains Liquid</option>
+              <option value="broken">Broken or Shattered</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="batch-actions">
+          <button type="button" id="add-to-batch-btn" class="secondary-btn">+ Add Current Item to Virtual Cart Load</button>
+          <button type="button" id="clear-batch-btn" class="text-btn">Reset Virtual Cart</button>
+        </div>
+      </section>
+
+      <section class="card result-panel" aria-live="polite">
+        <div id="evaluation-output"></div>
+      </section>
+    </div>
+
+    <section class="card batch-panel no-print" aria-labelledby="batch-heading">
+      <div class="batch-header">
+        <div>
+          <h2 id="batch-heading">Household Cart Contamination Simulator</h2>
+          <p class="batch-subtitle">Test a multi-item bin load to see whether MRF optical sorters and star-screens accept the cart or flag a load-ruining tangler/hazard.</p>
+        </div>
+        <div id="batch-summary-badge" class="stream-badge"></div>
+      </div>
+      <div id="batch-items-container" class="batch-items-container"></div>
+    </section>
+
+    <section class="card cheatsheet-section" id="printable-cheatsheet" aria-labelledby="cheatsheet-heading">
+      <div class="cheatsheet-header">
+        <div>
+          <h2 id="cheatsheet-heading">Sugar Land vs. Houston 1-Page Kitchen &amp; Garage Sorting Guide</h2>
+          <p class="cheatsheet-meta">Verified against City of Sugar Land Solid Waste &amp; Recycling (Republic Services / Fort Bend County Recycling Center) and City of Houston SWMD (Westpark / Neighborhood Depositories) ordinances.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Household Item / Material</th>
+              <th>City of Sugar Land, TX (Republic Services)</th>
+              <th>City of Houston, TX (SWMD)</th>
+              <th>MRF Sorting Physics &amp; Preparation Rule</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>#1 PET &amp; #2 HDPE Bottles/Jugs</strong></td>
+              <td>Recycle in Curbside Cart</td>
+              <td>Recycle in Green Cart</td>
+              <td>Empty all liquid so optical NIR air jets can eject containers accurately; keep loose.</td>
+            </tr>
+            <tr>
+              <td><strong>#5 Polypropylene (PP) Tubs</strong></td>
+              <td>Recycle in Curbside Cart (Clean)</td>
+              <td>Recycle in Green Cart (Clean)</td>
+              <td>Rinse dairy/food residue; discard foil peel lids in trash.</td>
+            </tr>
+            <tr>
+              <td><strong>Clean Glass Bottles &amp; Jars</strong></td>
+              <td>Accepted in Curbside Cart</td>
+              <td>Accepted in Green Cart &amp; Depositories</td>
+              <td>Remove metal caps (recycle separately). Never include broken glass, ceramics, or Pyrex.</td>
+            </tr>
+            <tr>
+              <td><strong>Greasy Pizza Boxes</strong></td>
+              <td>Tear Clean Lid for Cart / Trash Bottom</td>
+              <td>Tear Clean Lid for Cart / Trash Bottom</td>
+              <td>Pizza oil permanently weakens wet paper pulp; always tear off clean cardboard lids.</td>
+            </tr>
+            <tr>
+              <td><strong>Plastic Grocery Bags (#4 Film)</strong></td>
+              <td>Never in Cart (Retail Store Drop-Off)</td>
+              <td>Never in Cart (Retail Store Drop-Off)</td>
+              <td>#1 MRF shaft tangler. Return clean dry film to H-E-B, Kroger, or Target store kiosks.</td>
+            </tr>
+            <tr>
+              <td><strong>#6 Polystyrene / Styrofoam</strong></td>
+              <td>Clean Foam to Fort Bend Drop-Off; Food Foam in Trash</td>
+              <td>Black Garbage Cart Only</td>
+              <td>Fort Bend County Recycling Center (1200 Blume Rd) densifies clean #6 foam; never place in carts.</td>
+            </tr>
+            <tr>
+              <td><strong>Yard Trimmings &amp; Brush</strong></td>
+              <td>Kraft Paper Bags / Cans (40 lb limit)</td>
+              <td>City-Logo Compostable Bags Only (50 lb limit)</td>
+              <td>Houston requires bags stamped with the official City biodegradable logo.</td>
+            </tr>
+            <tr>
+              <td><strong>Lithium &amp; Household Batteries</strong></td>
+              <td>Fort Bend County HHW Drop-Off Only</td>
+              <td>Houston Westpark / North ESC BOPA Only</td>
+              <td>Compaction punctures lithium cells, sparking MRF truck and facility fires. Tape terminals.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer no-print">
+    <div class="container footer-inner">
+      <p>BinCheck Municipal Rules Engine (v1.0.0) | Official references: <a href="https://www.sugarlandtx.gov/361/Solid-Waste-and-Recycling" target="_blank" rel="noopener noreferrer">City of Sugar Land Solid Waste &amp; Recycling</a> &amp; <a href="https://www.houstontx.gov/solidwaste/recycling.html" target="_blank" rel="noopener noreferrer">City of Houston SWMD</a>.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

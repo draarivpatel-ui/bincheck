@@ -1,0 +1,21 @@
+{
+  "name": "bincheck",
+  "version": "1.0.0",
+  "description": "BinCheck: Verified Houston and Sugar Land Municipal Recycling and Barcode Rules Engine",
+  "type": "module",
+  "main": "src/bincheck-engine.js",
+  "scripts": {
+    "test": "node --test tests/bincheck.test.js",
+    "verify:sources": "node scripts/verify-city-sources.js --offline",
+    "verify:live": "node scripts/verify-city-sources.js --live"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/draarivpatel-ui/bincheck.git"
+  },
+  "author": "Aariv Patel (draarivpatel-ui)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

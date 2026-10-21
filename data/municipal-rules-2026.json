@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "2026.10",
+  "lastVerifiedDate": "2026-10-20",
+  "jurisdictions": {
+    "sugar-land-tx": {
+      "id": "sugar-land-tx",
+      "name": "City of Sugar Land, TX",
+      "county": "Fort Bend County",
+      "provider": "Republic Services (City of Sugar Land Solid Waste and Recycling)",
+      "officialSourceUrl": "https://www.sugarlandtx.gov/361/Solid-Waste-and-Recycling",
+      "dropOffCenter": {
+        "name": "Fort Bend County Recycling Center",
+        "location": "1200 Blume Rd, Rosenberg, TX 77471",
+        "phone": "(281) 633-7581",
+        "accepts": [
+          "Household batteries (lithium-ion, alkaline, rechargeable)",
+          "Electronics and e-waste (computers, monitors, TVs, cords)",
+          "Latex and oil-based paint, automotive fluids, household hazardous waste",
+          "Polystyrene (#6 foam) and rigid plastics not accepted curbside",
+          "Scrap metal and appliances without refrigerant"
+        ]
+      },
+      "curbsideCartRules": {
+        "acceptedResins": [1, 2, 5],
+        "conditionalResins": [3, 4, 7],
+        "rejectedResins": [6],
+        "acceptsCleanGlassCurbside": true,
+        "glassNote": "Clean glass bottles and jars (clear, brown, and green) are accepted in the Sugar Land single-stream recycling cart.",
+        "plasticBagsAllowedInCart": false,
+        "bagNote": "Never bag recyclables or place plastic bags or plastic grocery bags in the recycling cart. Film plastics tangle MRF star-screens; return clean dry bags to H-E-B or Kroger store drop-off bins.",
+        "greasyPizzaBoxRule": "Tear off the clean cardboard lid and recycle it; place the grease-soaked bottom half in the trash cart.",
+        "greenWasteProgram": "Set out yard trimmings, leaves, grass clippings, and brush on your scheduled green waste collection day in compostable paper lawn bags, reusable containers, or tied bundles under 4 feet and 40 pounds."
+      }
+    },
+    "houston-tx": {
+      "id": "houston-tx",
+      "name": "City of Houston, TX",
+      "county": "Harris / Fort Bend / Montgomery Counties",
+      "provider": "City of Houston Solid Waste Management Department (SWMD)",
+      "officialSourceUrl": "https://www.houstontx.gov/solidwaste/recycling.html",
+      "dropOffCenter": {
+        "name": "City of Houston Neighborhood Depository and Recycling Center / Westpark Consumer Recycling Center",
+        "location": "5900 Westpark Dr, Houston, TX 77057 (plus 6 Neighborhood Depositories)",
+        "phone": "3-1-1 / (713) 837-0311",
+        "accepts": [
+          "Glass bottles and jars (always accepted at Neighborhood Depositories and Westpark)",
+          "Electronics, rechargeable batteries, and fluorescent bulbs (Environmental Service Centers)",
+          "BOPA items (Batteries, Oil, Paint, Antifreeze) at Westpark and North ESC",
+          "Scrap metal, bulk cardboard, and tree waste"
+        ]
+      },
+      "curbsideCartRules": {
+        "acceptedResins": [1, 2, 5],
+        "conditionalResins": [],
+        "rejectedResins": [3, 4, 6, 7],
+        "acceptsCleanGlassCurbside": true,
+        "glassNote": "Clean glass bottles and jars are accepted in Houston green Automated Recycling Carts (following FCC Environmental MRF upgrades), or at any Neighborhood Depository and Westpark Drop-Off. Broken glass, mirrors, and ceramics are strictly prohibited.",
+        "plasticBagsAllowedInCart": false,
+        "bagNote": "Plastic bags, wrap, and film are the #1 MRF tangler in Houston. Place items loose in the green cart; return film bags to retail grocery drop-off kiosks.",
+        "greasyPizzaBoxRule": "Detach clean cardboard tops for the green recycling cart; discard grease-saturated bottoms and food residue in the black garbage cart.",
+        "greenWasteProgram": "Yard trimmings must be placed in City-approved compostable biodegradable bags (with the city logo) or bundled under 4 feet and 50 pounds on designated tree/yard waste days."
+      }
+    }
+  }
+}
