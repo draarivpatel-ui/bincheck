@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/bincheck-engine.js",
   "scripts": {
-    "test": "node --test tests/bincheck.test.js",
+    "test": "node --test tests/bincheck.test.js tests/dom-smoke.test.js",
     "verify:sources": "node scripts/verify-city-sources.js --offline",
     "verify:live": "node scripts/verify-city-sources.js --live"
   },
@@ -13,7 +13,7 @@
     "type": "git",
     "url": "https://github.com/draarivpatel-ui/bincheck.git"
   },
-  "author": "Aariv Patel (draarivpatel-ui)",
+  "author": "draarivpatel-ui",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"

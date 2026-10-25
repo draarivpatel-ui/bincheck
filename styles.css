@@ -60,6 +60,11 @@
   outline-offset: 2px;
 }
 
+html,
+body {
+  overflow-x: clip;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -74,7 +79,41 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.tabular {
+.skip-link {
+  position: absolute;
+  top: -3.5rem;
+  left: 1rem;
+  z-index: 1000;
+  padding: 0.55rem 0.95rem;
+  background: var(--ink);
+  color: var(--surface);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--accent);
+  transition: top 0.16s var(--ease-gate);
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 0.75rem;
+}
+
+.noscript-banner {
+  background: var(--amber-wash);
+  color: var(--amber-text);
+  border-bottom: 1px solid var(--amber);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.86rem;
+  text-align: center;
+}
+
+.tabular,
+.telemetry-cell dd,
+.resin-num,
+.risk-score-readout {
   font-variant-numeric: tabular-nums;
 }
 
@@ -89,6 +128,7 @@ body {
   border-radius: var(--radius-sm);
   letter-spacing: 0.02em;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .container {
