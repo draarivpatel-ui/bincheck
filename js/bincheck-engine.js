@@ -676,7 +676,9 @@ export function validateBarcodeCheckDigit(rawBarcode) {
 }
 
 /**
- * 28 real verified Texas grocery and household product barcodes with valid GS1 check digits.
+ * 28-item demo catalog of Texas-shelf product types. Every code passes the GS1
+ * Modulo-10 check digit; the product-to-code pairings are illustrative and were
+ * not scanned from store shelves.
  */
 export const VERIFIED_BARCODE_CATALOG = [
   {
@@ -928,6 +930,40 @@ export function lookupProductByBarcode(rawBarcode) {
 }
 
 /**
+ * Grease-soaked cardboard or paper that is not a pizza box. Both city snapshots
+ * state the tear-and-split rule for grease-soaked pizza boxes
+ * (curbsideCartRules.greasyPizzaBoxRule); this profile applies the same rule to
+ * other soiled fiber, which is an inference and is labeled as one in the
+ * benchmark. It is derived from the pizza box category so the two can never
+ * drift apart, and it is not a selectable category of its own.
+ */
+const SOILED_FIBER_PROFILE = Object.freeze({
+  ...MATERIAL_CATEGORIES["greasy-pizza-box"],
+  id: "soiled-cardboard-paper",
+  title: "Grease-Soaked Cardboard or Paper",
+  Riverside: {
+    ...MATERIAL_CATEGORIES["greasy-pizza-box"].Riverside,
+    badgeLabel: "Recycle Clean Part / Trash Greasy Part",
+    prepSteps: [
+      "Scrape off food residue.",
+      "Tear away any clean, dry cardboard or paper and flatten it for the Riverside recycling cart.",
+      "Put the grease-soaked part in your regular household trash cart."
+    ]
+  },
+  houston: {
+    ...MATERIAL_CATEGORIES["greasy-pizza-box"].houston,
+    badgeLabel: "Split: Clean Part in Green Cart, Greasy Part in Trash",
+    prepSteps: [
+      "Tear away any clean, dry cardboard or paper for the Houston green recycling cart.",
+      "Place the grease-saturated part in the black garbage cart."
+    ]
+  },
+  divergenceSummary: "Both cities apply the tear-and-split rule to grease-soaked fiber: recycle the clean part and trash the greasy part."
+});
+
+export { SOILED_FIBER_PROFILE };
+
+/**
  * Maps a numeric Contamination Risk Score (0-100) to a severity tier.
  */
 export function getContaminationTier(score) {
@@ -965,7 +1001,7 @@ export function resolveMaterialProfile(query = {}) {
 
   if (!materialId && query.resinCode !== undefined && query.resinCode !== null && query.resinCode !== "") {
     const rCode = Number(query.resinCode);
-    if (RESIN_CODE_METADATA[rCode]) {
+    if (Object.hasOwn(RESIN_CODE_METADATA, rCode)) {
       materialId = RESIN_CODE_METADATA[rCode].defaultMaterialId;
     }
   }
@@ -976,7 +1012,13 @@ export function resolveMaterialProfile(query = {}) {
     materialId = "broken-glass-ceramic";
   }
 
-  const category = MATERIAL_CATEGORIES[materialId] || MATERIAL_CATEGORIES["resin-1-pet"];
+  if (query.condition === "greasy" && materialId === "clean-cardboard-paper") {
+    return { category: SOILED_FIBER_PROFILE, barcodeResult, resolvedProduct };
+  }
+
+  const category = Object.hasOwn(MATERIAL_CATEGORIES, materialId)
+    ? MATERIAL_CATEGORIES[materialId]
+    : MATERIAL_CATEGORIES["resin-1-pet"];
   return {
     category,
     barcodeResult,
@@ -996,7 +1038,8 @@ export function evaluateItemDisposal(query = {}) {
   const cityRule = cityId === "houston-tx" ? category.houston : category.Riverside;
 
   let riskScore = category.baseRiskScore;
-  if (query.condition === "greasy" && category.id !== "greasy-pizza-box") {
+  // Profiles whose rule already accounts for grease never take the penalty twice.
+  if (query.condition === "greasy" && category.id !== "greasy-pizza-box" && category.id !== SOILED_FIBER_PROFILE.id) {
     riskScore = Math.min(100, riskScore + 35);
   }
   if (cityId === "houston-tx" && category.id === "resin-6-ps-foam") {
@@ -1017,7 +1060,7 @@ export function evaluateItemDisposal(query = {}) {
     itemTitle,
     materialId: category.id,
     resinCode: category.resinCode,
-    resinInfo: category.resinCode ? RESIN_CODE_METADATA[category.resinCode] : null,
+    resinInfo: Object.hasOwn(RESIN_CODE_METADATA, category.resinCode) ? RESIN_CODE_METADATA[category.resinCode] : null,
     stream: cityRule.stream,
     badgeLabel: cityRule.badgeLabel,
     contaminationRiskScore: riskScore,

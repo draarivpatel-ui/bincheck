@@ -19,6 +19,39 @@ import {
   verifySnapshotIntegrity
 } from "../scripts/verify-city-sources.js";
 
+test("engine: inherited material and resin names use the default profile without throwing", () => {
+  for (const token of ["constructor", "__proto__", "toString", "valueOf"]) {
+    for (const city of ["Riverside-tx", "houston-tx"]) {
+      for (const query of [
+        { materialId: token },
+        { resinCode: token },
+        { materialId: token, resinCode: 3 },
+        { materialId: token, barcode: "041220576463" }
+      ]) {
+        const expected = evaluateItemDisposal({ city, materialId: "resin-1-pet", barcode: query.barcode });
+        assert.deepEqual(evaluateItemDisposal({ ...query, city }), expected, token + " in " + city);
+        assert.equal(resolveMaterialProfile(query).category, MATERIAL_CATEGORIES["resin-1-pet"]);
+      }
+    }
+  }
+});
+
+test("engine: comparisons and cart scoring reject inherited material names through the direct API", () => {
+  const items = ["constructor", "__proto__", "toString", "valueOf"].map((materialId) => ({ materialId }));
+  for (const query of items) {
+    const compared = compareJurisdictions(query);
+    assert.equal(compared.materialId, "resin-1-pet");
+    assert.equal(compared.Riverside.stream, "RECYCLE_CART");
+    assert.equal(compared.houston.stream, "RECYCLE_CART");
+  }
+  for (const city of ["Riverside-tx", "houston-tx"]) {
+    const cart = scoreCartBatch(items, city);
+    assert.equal(cart.itemCount, items.length);
+    assert.ok(cart.evaluations.every((item) => item.materialId === "resin-1-pet"));
+    assert.equal(cart.loadStatus, "CLEAN_CURBSIDE_LOAD");
+  }
+});
+
 test("1. SUPPORTED_CITIES defines Riverside and Houston municipal metadata", () => {
   assert.equal(SUPPORTED_CITIES["Riverside-tx"].shortName, "Riverside, TX");
   assert.equal(SUPPORTED_CITIES["houston-tx"].shortName, "Houston, TX");
@@ -223,9 +256,20 @@ test("22. evaluateItemDisposal applies greasy condition penalty (+35) to non-piz
   const cleanCardboard = evaluateItemDisposal({ materialId: "clean-cardboard-paper", condition: "clean" });
   assert.equal(cleanCardboard.contaminationRiskScore, 10);
 
-  const greasyCardboard = evaluateItemDisposal({ materialId: "clean-cardboard-paper", condition: "greasy" });
-  assert.equal(greasyCardboard.contaminationRiskScore, 45);
-  assert.equal(greasyCardboard.contaminationTier, "MODERATE");
+  const cleanTub = evaluateItemDisposal({ materialId: "resin-5-pp", condition: "clean" });
+  const greasyTub = evaluateItemDisposal({ materialId: "resin-5-pp", condition: "greasy" });
+  assert.equal(greasyTub.contaminationRiskScore, Math.min(100, cleanTub.contaminationRiskScore + 35));
+});
+
+test("22b. grease-soaked cardboard follows the tear-and-split pizza box rule in both cities", () => {
+  for (const city of ["Riverside-tx", "houston-tx"]) {
+    const ev = evaluateItemDisposal({ materialId: "clean-cardboard-paper", condition: "greasy", city });
+    assert.equal(ev.stream, "SPLIT_DISPOSAL");
+    assert.equal(ev.materialId, "soiled-cardboard-paper");
+    assert.equal(ev.contaminationRiskScore, 68, "no double grease penalty on the soiled profile");
+    assert.equal(ev.contaminationTier, "HIGH");
+    assert.ok(ev.prepSteps.every((step) => !/pizza|crust/i.test(step)), "generic steps, not pizza-specific ones");
+  }
 });
 
 test("23. evaluateItemDisposal does not double-penalize greasy-pizza-box when condition is greasy", () => {

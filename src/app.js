@@ -1,12 +1,18 @@
+import { VERIFIED_BARCODE_CATALOG, MATERIAL_CATEGORIES, SUPPORTED_CITIES } from "./bincheck-engine.js";
+import { decodeShareHash } from "../js/bincheck-validate.js";
+import { BATCH_LIMITS, batchResultToCsv, batchResultToJson } from "../js/bincheck-batch.js";
+import { runBenchmark, benchmarkToJson } from "../js/bincheck-benchmark.js";
+import { createInitialState, reduce, selectViewModel, resolveShortcut } from "./state.js";
 import {
-  VERIFIED_BARCODE_CATALOG,
-  RESIN_CODE_METADATA,
-  validateBarcodeCheckDigit,
-  lookupProductByBarcode,
-  evaluateItemDisposal,
-  compareJurisdictions,
-  scoreCartBatch
-} from "./bincheck-engine.js";
+  renderSingleEvaluation,
+  renderComparisonView,
+  renderBarcodeMathStrip,
+  renderCart,
+  renderBatchReport,
+  renderBenchmark,
+  renderPrintReport,
+  renderShortcutList
+} from "./render.js";
 
 const DEMO_SCENARIOS = {
   "pet-bottle": {
@@ -56,498 +62,576 @@ const DEMO_SCENARIOS = {
   }
 };
 
-const state = {
-  cityMode: "Riverside-tx",
-  barcode: "041220576463",
-  materialId: "resin-1-pet",
-  resinCode: 1,
-  condition: "clean",
-  batchItems: [
-    { barcode: "041220576463", materialId: "resin-1-pet", condition: "clean" },
-    { barcode: "049000006346", materialId: "aluminum-steel-can", condition: "clean" },
-    { barcode: "041220794386", materialId: "glass-jar-bottle", condition: "clean" }
-  ],
-  cameraStream: null
-};
+export { DEMO_SCENARIOS };
 
-function getRiskColor(score) {
-  if (score >= 85) return "#DC2626";
-  if (score >= 55) return "#D97706";
-  if (score >= 25) return "#B45309";
-  return "#047857";
+const NOTICE_MS = 6000;
+
+function defaultDownload(doc, win, filename, mime, text) {
+  const blob = new win.Blob([text], { type: `${mime};charset=utf-8` });
+  const url = win.URL.createObjectURL(blob);
+  const anchor = doc.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  doc.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  win.setTimeout(() => win.URL.revokeObjectURL(url), 1000);
 }
 
-function getStreamSvgIcon(stream) {
-  if (stream === "RECYCLE_CART" || stream === "GREEN_WASTE") {
-    return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
-  }
-  if (stream === "SPLIT_DISPOSAL") {
-    return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>`;
-  }
-  return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function triggerLaserSweep() {
-  const deck = document.getElementById("scanner-deck");
-  const resultCard = document.getElementById("result-panel-card");
-  if (deck) {
-    deck.classList.remove("scanning");
-    void deck.offsetWidth;
-    deck.classList.add("scanning");
-  }
-  if (resultCard) {
-    resultCard.classList.remove("gate-snap");
-    void resultCard.offsetWidth;
-    resultCard.classList.add("gate-snap");
-  }
-}
-
-function renderBarcodeMathStrip(rawBarcode) {
-  const stripEl = document.getElementById("barcode-math-strip");
-  if (!stripEl) return;
-
-  if (!rawBarcode || !rawBarcode.trim()) {
-    stripEl.innerHTML = `<span class="math-chip">GS1 ENGINE IDLE // SELECT RESIN OR ENTER 12-DIGIT UPC</span>`;
-    return;
-  }
-
-  const check = validateBarcodeCheckDigit(rawBarcode);
-  if (!check.valid) {
-    stripEl.innerHTML = `
-      <span class="math-chip math-chip-err">FORMAT: ${escapeHtml(check.format)}</span>
-      <span class="math-chip math-chip-err">EXPECTED CHECK: ${check.expectedCheckDigit ?? "N/A"}</span>
-      <span class="math-chip math-chip-err">ACTUAL: ${check.actualCheckDigit ?? "N/A"}</span>
-    `;
-    return;
-  }
-
-  const payload = check.normalized.slice(0, -1);
-  stripEl.innerHTML = `
-    <span class="math-chip">FORMAT: <strong>${escapeHtml(check.format)}</strong></span>
-    <span class="math-chip">PAYLOAD: <strong>${escapeHtml(payload)}</strong></span>
-    <span class="math-chip">MOD-10 CHECK: <strong>${check.actualCheckDigit}</strong></span>
-    ${check.ean13 ? `<span class="math-chip">EAN-13: <strong>${escapeHtml(check.ean13)}</strong></span>` : ""}
-  `;
-}
-
-function renderContaminationGauge(score, tier, mrfFailureMode) {
-  const riskColor = getRiskColor(score);
-  return `
-    <div class="risk-meter-box">
-      <div class="risk-meter-top">
-        <span>MRF Contamination Risk Gauge</span>
-        <span class="tabular risk-score-readout" style="color: ${riskColor};">${score}/100 // ${escapeHtml(tier)}</span>
-      </div>
-      <div class="risk-bar-track" role="meter" aria-valuenow="${score}" aria-valuemin="0" aria-valuemax="100" aria-label="MRF Contamination Risk Score">
-        <div class="risk-bar-fill" style="width: ${score}%; background: ${riskColor};"></div>
-        <span class="gauge-tick" style="left: 25%;" title="Moderate Threshold (25)"></span>
-        <span class="gauge-tick" style="left: 55%;" title="High Threshold (55)"></span>
-        <span class="gauge-tick" style="left: 85%;" title="Critical Rejection Threshold (85)"></span>
-      </div>
-      <div class="gauge-scale-labels tabular">
-        <span>0 LOW</span>
-        <span>25 MOD</span>
-        <span>55 HIGH</span>
-        <span>85+ REJECT</span>
-      </div>
-      <p class="mrf-note"><strong>Sorting Facility Physics:</strong> ${escapeHtml(mrfFailureMode)}</p>
-    </div>
-  `;
-}
-
-function renderSingleEvaluation(ev) {
-  const stepsHtml = ev.prepSteps
-    .map((s) => `<li>${escapeHtml(s)}</li>`)
-    .join("");
-
-  const resinBadge = ev.resinInfo
-    ? `<p class="eval-jurisdiction tabular"><strong>Polymer Stamp:</strong> ${escapeHtml(ev.resinInfo.symbol)} (${escapeHtml(ev.resinInfo.polymer)})</p>`
-    : "";
-
-  return `
-    <div class="eval-header">
-      <div>
-        <h3 class="eval-title">${escapeHtml(ev.itemTitle)}</h3>
-        <p class="eval-jurisdiction">${escapeHtml(ev.cityName)} // ${escapeHtml(ev.operator)}</p>
-        ${resinBadge}
-      </div>
-      <span class="stream-badge stream-${escapeHtml(ev.stream)}">
-        ${getStreamSvgIcon(ev.stream)}
-        <span>${escapeHtml(ev.badgeLabel)}</span>
-      </span>
-    </div>
-
-    ${renderContaminationGauge(ev.contaminationRiskScore, ev.contaminationTier, ev.mrfFailureMode)}
-
-    <div class="eval-section">
-      <h4>Required Household Preparation Steps</h4>
-      <ul class="prep-list">${stepsHtml}</ul>
-    </div>
-
-    <div class="dropoff-card">
-      <div class="dropoff-row"><strong>Local Drop-Off &amp; Ordinance Guidance:</strong> ${escapeHtml(ev.dropOffNote)}</div>
-      <div class="dropoff-row tabular"><strong>Primary Facility:</strong> ${escapeHtml(ev.dropOffFacility.name)} (${escapeHtml(ev.dropOffFacility.address)})</div>
-      <div class="dropoff-row"><strong>Plastic Film Return:</strong> ${escapeHtml(ev.dropOffFacility.retailBagDropOff)}</div>
-      <div class="dropoff-row divergence-callout"><strong>Riverside vs. Houston Rule Comparison:</strong> ${escapeHtml(ev.cityDivergenceNote)}</div>
-    </div>
-  `;
-}
-
-function renderComparisonView(comp) {
-  const sl = comp.Riverside;
-  const ho = comp.houston;
-  return `
-    <div class="eval-header">
-      <div>
-        <h3 class="eval-title">${escapeHtml(comp.itemTitle)}</h3>
-        <p class="eval-jurisdiction">Side-by-Side Municipal Ordinance Comparison (Riverside vs. Houston)</p>
-      </div>
-      <span class="stream-badge stream-${comp.sameStream ? escapeHtml(sl.stream) : "SPLIT_DISPOSAL"}">
-        ${getStreamSvgIcon(comp.sameStream ? sl.stream : "SPLIT_DISPOSAL")}
-        <span>${comp.sameStream ? "Aligned Stream Rules" : `Rule Divergence (Delta ${comp.riskDelta} pts)`}</span>
-      </span>
-    </div>
-
-    <div class="risk-meter-box">
-      <p class="mrf-note" style="margin:0;"><strong>Key Ordinance Comparison:</strong> ${escapeHtml(comp.divergenceSummary)}</p>
-      <p class="mrf-note"><strong>MRF Physics:</strong> ${escapeHtml(sl.mrfFailureMode)}</p>
-    </div>
-
-    <div class="compare-columns">
-      <div class="compare-col">
-        <div class="compare-col-head">
-          <h4>City of Riverside, TX</h4>
-          <span class="mono-tag tabular">county</span>
-        </div>
-        <span class="stream-badge stream-${escapeHtml(sl.stream)}">
-          ${getStreamSvgIcon(sl.stream)}
-          <span>${escapeHtml(sl.badgeLabel)}</span>
-        </span>
-        <p class="compare-risk-line tabular"><strong>Contamination Risk:</strong> ${sl.contaminationRiskScore}/100 (${escapeHtml(sl.contaminationTier)})</p>
-        <ul class="prep-list">
-          ${sl.prepSteps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}
-        </ul>
-        <p class="compare-facility-line tabular"><strong>Facility:</strong> ${escapeHtml(sl.dropOffFacility.name)}, ${escapeHtml(sl.dropOffFacility.address)}</p>
-      </div>
-
-      <div class="compare-col">
-        <div class="compare-col-head">
-          <h4>City of Houston, TX</h4>
-          <span class="mono-tag tabular">SWMD / FCC</span>
-        </div>
-        <span class="stream-badge stream-${escapeHtml(ho.stream)}">
-          ${getStreamSvgIcon(ho.stream)}
-          <span>${escapeHtml(ho.badgeLabel)}</span>
-        </span>
-        <p class="compare-risk-line tabular"><strong>Contamination Risk:</strong> ${ho.contaminationRiskScore}/100 (${escapeHtml(ho.contaminationTier)})</p>
-        <ul class="prep-list">
-          ${ho.prepSteps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}
-        </ul>
-        <p class="compare-facility-line tabular"><strong>Facility:</strong> ${escapeHtml(ho.dropOffFacility.name)}, ${escapeHtml(ho.dropOffFacility.address)}</p>
-      </div>
-    </div>
-  `;
-}
-
-function renderBatchSimulator() {
-  const activeCity = state.cityMode === "houston-tx" ? "houston-tx" : "Riverside-tx";
-  const summary = scoreCartBatch(state.batchItems, activeCity);
-  const badgeEl = document.getElementById("batch-summary-badge");
-  const containerEl = document.getElementById("batch-items-container");
-
-  if (summary.itemCount === 0) {
-    badgeEl.className = "stream-badge stream-SPLIT_DISPOSAL tabular";
-    badgeEl.textContent = "Cart Empty (0 Items)";
-    containerEl.innerHTML = `<p class="empty-batch-msg">Use "Add Current Item to Virtual Cart Load" to test how a single tangler or battery affects an otherwise clean recycling bin.</p>`;
-    return;
-  }
-
-  if (summary.loadStatus === "CLEAN_CURBSIDE_LOAD") {
-    badgeEl.className = "stream-badge stream-RECYCLE_CART tabular";
-    badgeEl.textContent = `Clean Curbside Load (Avg Risk ${summary.averageRiskScore}/100)`;
-  } else if (summary.loadStatus === "NEEDS_SORTING_FIXES") {
-    badgeEl.className = "stream-badge stream-SPLIT_DISPOSAL tabular";
-    badgeEl.textContent = `Preparation Needed (Max Risk ${summary.maxRiskScore}/100)`;
-  } else {
-    badgeEl.className = "stream-badge stream-SPECIAL_DROPOFF tabular";
-    badgeEl.textContent = `Contaminated Load Alert (${summary.criticalHazards.length} Hazard/Tangler Item${summary.criticalHazards.length === 1 ? "" : "s"})`;
-  }
-
-  containerEl.innerHTML = summary.evaluations
-    .map(
-      (ev, idx) => `
-      <div class="batch-chip">
-        <div class="batch-chip-top">
-          <strong>${escapeHtml(ev.itemTitle)}</strong>
-          <button type="button" class="text-btn" data-remove-batch="${idx}">Remove</button>
-        </div>
-        <span class="batch-chip-meta">Stream: <strong>${escapeHtml(ev.badgeLabel)}</strong></span>
-        <span class="batch-chip-meta tabular">Contamination Score: <strong>${ev.contaminationRiskScore}/100</strong> (${escapeHtml(ev.contaminationTier)})</span>
-      </div>
-    `
-    )
-    .join("");
-
-  containerEl.querySelectorAll("[data-remove-batch]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.getAttribute("data-remove-batch"));
-      state.batchItems.splice(idx, 1);
-      renderBatchSimulator();
-    });
-  });
-}
-
-function updateUI() {
-  const barcodeInput = document.getElementById("barcode-input");
-  const barcodeStatus = document.getElementById("barcode-status");
-  const materialSelect = document.getElementById("material-select");
-  const conditionSelect = document.getElementById("condition-select");
-  const outputEl = document.getElementById("evaluation-output");
-
-  barcodeInput.value = state.barcode || "";
-  materialSelect.value = state.materialId;
-  conditionSelect.value = state.condition;
-
-  document.querySelectorAll(".city-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.getAttribute("data-city-mode") === state.cityMode);
-  });
-
-  document.querySelectorAll(".resin-btn").forEach((btn) => {
-    const r = Number(btn.getAttribute("data-resin"));
-    btn.classList.toggle("active", r === Number(state.resinCode));
-  });
-
-  if (state.barcode) {
-    const lookup = lookupProductByBarcode(state.barcode);
-    if (!lookup.validation.valid) {
-      barcodeStatus.className = "barcode-status invalid tabular";
-      barcodeStatus.textContent = lookup.validation.reason;
-    } else if (lookup.found) {
-      barcodeStatus.className = "barcode-status valid tabular";
-      barcodeStatus.textContent = `${lookup.validation.reason} Matched: ${lookup.product.productName} (${lookup.product.packagingSummary}).`;
-    } else {
-      barcodeStatus.className = "barcode-status valid tabular";
-      barcodeStatus.textContent = `${lookup.validation.reason} Custom product UPC; evaluating using selected material/resin rule.`;
-    }
-  } else {
-    barcodeStatus.className = "barcode-status tabular";
-    barcodeStatus.textContent = "Enter any 12-digit UPC-A or 13-digit EAN-13 barcode, or choose a material category below.";
-  }
-
-  renderBarcodeMathStrip(state.barcode);
-
-  const query = {
-    barcode: state.barcode,
-    materialId: state.materialId,
-    resinCode: state.resinCode,
-    condition: state.condition
+/**
+ * Wires the BinCheck UI to a document. All DOM access goes through the injected
+ * `doc` and `win`, so the controller can run against a stand-in in tests.
+ */
+export function createApp({ document: doc, window: win, deps = {} }) {
+  const els = {
+    barcodeInput: doc.getElementById("barcode-input"),
+    barcodeStatus: doc.getElementById("barcode-status"),
+    barcodeMathStrip: doc.getElementById("barcode-math-strip"),
+    materialSelect: doc.getElementById("material-select"),
+    conditionSelect: doc.getElementById("condition-select"),
+    catalogSelect: doc.getElementById("catalog-select"),
+    evaluationOutput: doc.getElementById("evaluation-output"),
+    resultLive: doc.getElementById("result-live"),
+    resultCard: doc.getElementById("result-panel-card"),
+    scannerDeck: doc.getElementById("scanner-deck"),
+    batchBadge: doc.getElementById("batch-summary-badge"),
+    batchContainer: doc.getElementById("batch-items-container"),
+    csvInput: doc.getElementById("csv-input"),
+    csvResults: doc.getElementById("csv-results"),
+    csvFileInput: doc.getElementById("csv-file-input"),
+    exportCsvBtn: doc.getElementById("export-csv-btn"),
+    exportJsonBtn: doc.getElementById("export-json-btn"),
+    benchmarkOutput: doc.getElementById("benchmark-output"),
+    benchmarkExportBtn: doc.getElementById("benchmark-export-btn"),
+    shortcutDialog: doc.getElementById("shortcut-dialog"),
+    shortcutList: doc.getElementById("shortcut-list"),
+    statusLive: doc.getElementById("status-live"),
+    printReport: doc.getElementById("print-report"),
+    cameraWrap: doc.getElementById("camera-preview-wrap"),
+    cameraVideo: doc.getElementById("camera-video"),
+    statBarcodes: doc.getElementById("stat-barcodes"),
+    statMaterials: doc.getElementById("stat-materials"),
+    statCities: doc.getElementById("stat-cities")
   };
 
-  if (state.cityMode === "compare") {
-    const comp = compareJurisdictions(query);
-    outputEl.innerHTML = renderComparisonView(comp);
-  } else {
-    const ev = evaluateItemDisposal({ ...query, city: state.cityMode });
-    outputEl.innerHTML = renderSingleEvaluation(ev);
+  const download = deps.download || ((filename, mime, text) => defaultDownload(doc, win, filename, mime, text));
+  const now = deps.now || (() => (win.performance && win.performance.now ? win.performance.now() : Date.now()));
+  const prefersReducedMotion = () =>
+    typeof win.matchMedia === "function" && win.matchMedia("(prefers-reduced-motion: reduce)").matches === true;
+
+  let state = createInitialState();
+  let noticeTimer = null;
+  let cameraStream = null;
+  let cameraTimer = null;
+  let cameraRequest = null;
+  let cameraRestartRequested = false;
+  let destroyed = false;
+  let lastHash = null;
+  let lastLive = "";
+
+  function setIfDifferent(element, prop, value) {
+    if (element && element[prop] !== value) {
+      element[prop] = value;
+    }
   }
 
-  renderBatchSimulator();
-}
-
-function initCatalogDropdown() {
-  const select = document.getElementById("catalog-select");
-  for (const item of VERIFIED_BARCODE_CATALOG) {
-    const opt = document.createElement("option");
-    opt.value = item.upc;
-    opt.textContent = `${item.upc} - ${item.productName}`;
-    select.appendChild(opt);
-  }
-  select.value = state.barcode;
-}
-
-function applyBarcodeSelection(rawUpc) {
-  state.barcode = rawUpc.trim();
-  const lookup = lookupProductByBarcode(state.barcode);
-  if (lookup.found && lookup.product) {
-    state.materialId = lookup.product.materialId;
-    state.resinCode = lookup.product.resinCode;
-  }
-  triggerLaserSweep();
-  updateUI();
-}
-
-async function startCameraBarcodeScan() {
-  const wrap = document.getElementById("camera-preview-wrap");
-  const video = document.getElementById("camera-video");
-  const statusEl = document.getElementById("barcode-status");
-
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    statusEl.className = "barcode-status invalid tabular";
-    statusEl.textContent = "Camera API unavailable in this browser context; use keyboard UPC entry or the verified Texas catalog dropdown.";
-    return;
+  function sweep() {
+    if (prefersReducedMotion()) {
+      return;
+    }
+    for (const [element, className] of [[els.scannerDeck, "scanning"], [els.resultCard, "gate-snap"]]) {
+      element.classList.remove(className);
+      void element.offsetWidth;
+      element.classList.add(className);
+    }
   }
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }
+  function syncHash(shareHash) {
+    const target = shareHash || "";
+    if (target === lastHash) return;
+    lastHash = target;
+    try {
+      const base = `${win.location.pathname}${win.location.search || ""}`;
+      win.history.replaceState(null, "", `${base}${target}`);
+    } catch {
+      // Some embedded contexts forbid history updates; sharing still works via the copy button.
+    }
+  }
+
+  function render() {
+    const vm = selectViewModel(state);
+
+    setIfDifferent(els.barcodeInput, "value", state.draftBarcode !== null ? state.draftBarcode : state.barcode || "");
+    setIfDifferent(els.materialSelect, "value", state.materialId);
+    setIfDifferent(els.conditionSelect, "value", state.condition);
+    const catalogMatch = VERIFIED_BARCODE_CATALOG.find((item) => item.upc === state.barcode);
+    setIfDifferent(els.catalogSelect, "value", catalogMatch ? catalogMatch.upc : "");
+
+    doc.querySelectorAll("[data-city-mode]").forEach((btn) => {
+      const active = btn.getAttribute("data-city-mode") === state.cityMode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
-    state.cameraStream = stream;
-    video.srcObject = stream;
-    await video.play();
-    wrap.classList.remove("hidden");
+    doc.querySelectorAll("[data-resin]").forEach((btn) => {
+      const active = Number(btn.getAttribute("data-resin")) === Number(state.resinCode);
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
 
-    if ("BarcodeDetector" in window) {
-      const detector = new window.BarcodeDetector({
-        formats: ["upc_a", "upc_e", "ean_13", "ean_8"]
-      });
-      const timer = setInterval(async () => {
-        if (!state.cameraStream) {
-          clearInterval(timer);
-          return;
-        }
-        try {
-          const codes = await detector.detect(video);
-          if (codes.length > 0 && codes[0].rawValue) {
-            stopCameraScan();
-            clearInterval(timer);
-            applyBarcodeSelection(codes[0].rawValue);
-          }
-        } catch {
-          // continue scanning frames
-        }
-      }, 450);
+    els.barcodeStatus.className = `barcode-status tabular ${vm.barcodeStatus.tone === "idle" ? "" : vm.barcodeStatus.tone}`.trim();
+    els.barcodeStatus.textContent = vm.barcodeStatus.text;
+    els.barcodeInput.setAttribute("aria-invalid", vm.barcodeStatus.invalid ? "true" : "false");
+    els.barcodeMathStrip.innerHTML = renderBarcodeMathStrip(vm.barcodeCheck);
+
+    els.evaluationOutput.innerHTML =
+      state.cityMode === "compare"
+        ? renderComparisonView(vm.comparison, vm.assessment)
+        : renderSingleEvaluation(vm.evaluation, vm.assessment);
+    if (lastLive !== vm.liveSummary) {
+      lastLive = vm.liveSummary;
+      els.resultLive.textContent = vm.liveSummary;
+    }
+
+    const cart = renderCart(vm.cartSummary);
+    els.batchBadge.className = cart.badgeClass;
+    els.batchBadge.textContent = cart.badgeText;
+    els.batchContainer.innerHTML = cart.html;
+
+    if (els.csvInput.value !== state.csvText) {
+      els.csvInput.value = state.csvText;
+    }
+    if (state.batchResult) {
+      els.csvResults.innerHTML = renderBatchReport(state.batchResult);
     } else {
-      statusEl.className = "barcode-status valid tabular";
-      statusEl.textContent = "Camera preview active. Enter the printed 12-digit UPC code in the field above.";
+      els.csvResults.innerHTML = `<p class="empty-batch-msg">No batch yet. Load the sample or paste your own rows, then choose Run inspection.</p>`;
     }
-  } catch {
-    statusEl.className = "barcode-status invalid tabular";
-    statusEl.textContent = "Camera permission declined or unavailable; use direct UPC input or select from the 28 verified barcodes.";
+    const hasRows = Boolean(state.batchResult && state.batchResult.rows.length > 0);
+    els.exportCsvBtn.disabled = !hasRows;
+    els.exportJsonBtn.disabled = !hasRows;
+
+    if (state.benchmarkResult) {
+      els.benchmarkOutput.innerHTML = renderBenchmark(state.benchmarkResult);
+    }
+    els.benchmarkExportBtn.disabled = !state.benchmarkResult;
+
+    els.statusLive.textContent = state.notice;
+    if (noticeTimer) {
+      win.clearTimeout(noticeTimer);
+      noticeTimer = null;
+    }
+    if (state.notice) {
+      noticeTimer = win.setTimeout(() => dispatch({ type: "CLEAR_NOTICE" }), NOTICE_MS);
+    }
+
+    syncHash(vm.shareHash);
   }
-}
 
-function stopCameraScan() {
-  const wrap = document.getElementById("camera-preview-wrap");
-  if (state.cameraStream) {
-    state.cameraStream.getTracks().forEach((t) => t.stop());
-    state.cameraStream = null;
+  function dispatch(action) {
+    const next = reduce(state, action);
+    if (next !== state) {
+      state = next;
+      render();
+    }
   }
-  wrap.classList.add("hidden");
-}
 
-function bindEvents() {
-  document.querySelectorAll(".city-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      state.cityMode = btn.getAttribute("data-city-mode");
-      triggerLaserSweep();
-      updateUI();
-    });
-  });
+  function stopCamera() {
+    cameraRestartRequested = false;
+    if (cameraRequest) cameraRequest.cancelled = true;
+    if (cameraTimer !== null) {
+      win.clearInterval(cameraTimer);
+      cameraTimer = null;
+    }
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      cameraStream = null;
+    }
+    els.cameraVideo.srcObject = null;
+    if (typeof els.cameraVideo.pause === "function") els.cameraVideo.pause();
+    els.cameraWrap.classList.add("hidden");
+  }
 
-  document.querySelectorAll(".demo-pill").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.getAttribute("data-demo");
-      const scenario = DEMO_SCENARIOS[key];
-      if (!scenario) return;
-      state.barcode = scenario.barcode;
-      state.materialId = scenario.materialId;
-      state.resinCode = scenario.resinCode;
-      state.condition = scenario.condition;
-      if (scenario.forceMode) {
-        state.cityMode = scenario.forceMode;
+  async function startCamera() {
+    if (destroyed) return;
+    if (cameraRequest) {
+      // A cancelled acquisition must settle before another request can start.
+      if (cameraRequest.cancelled) cameraRestartRequested = true;
+      return;
+    }
+    if (cameraStream) return;
+    const nav = win.navigator;
+    if (!nav || !nav.mediaDevices || !nav.mediaDevices.getUserMedia) {
+      els.barcodeStatus.className = "barcode-status invalid tabular";
+      els.barcodeStatus.textContent = "Camera API unavailable in this browser context; use keyboard UPC entry or the demo catalog.";
+      return;
+    }
+    const request = { cancelled: false };
+    cameraRequest = request;
+    try {
+      const stream = await nav.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      if (request.cancelled || destroyed) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
-      document.getElementById("catalog-select").value = scenario.barcode || "";
-      triggerLaserSweep();
-      updateUI();
-    });
-  });
-
-  document.getElementById("barcode-scan-btn").addEventListener("click", () => {
-    const val = document.getElementById("barcode-input").value;
-    applyBarcodeSelection(val);
-  });
-
-  document.getElementById("barcode-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      applyBarcodeSelection(e.target.value);
+      cameraStream = stream;
+      els.cameraVideo.srcObject = stream;
+      await els.cameraVideo.play();
+      if (request.cancelled || destroyed || cameraStream !== stream) return;
+      els.cameraWrap.classList.remove("hidden");
+      if ("BarcodeDetector" in win) {
+        const detector = new win.BarcodeDetector({ formats: ["upc_a", "ean_13", "ean_8"] });
+        let detecting = false;
+        cameraTimer = win.setInterval(async () => {
+          if (destroyed || cameraStream !== stream || detecting) return;
+          detecting = true;
+          try {
+            const codes = await detector.detect(els.cameraVideo);
+            if (destroyed || cameraStream !== stream) return;
+            if (codes.length > 0 && codes[0].rawValue) {
+              stopCamera();
+              dispatch({ type: "COMMIT_BARCODE", raw: codes[0].rawValue });
+              sweep();
+            }
+          } catch {
+            // keep scanning frames
+          } finally {
+            detecting = false;
+          }
+        }, 450);
+      } else {
+        els.barcodeStatus.className = "barcode-status valid tabular";
+        els.barcodeStatus.textContent = "Camera preview active. This browser cannot read barcodes automatically; type the printed 12-digit code in the field above.";
+      }
+    } catch {
+      if (request.cancelled || destroyed) return;
+      stopCamera();
+      els.barcodeStatus.className = "barcode-status invalid tabular";
+      els.barcodeStatus.textContent = "Camera permission declined or unavailable; use direct UPC input or pick from the demo catalog.";
+    } finally {
+      if (cameraRequest === request) {
+        cameraRequest = null;
+        if (cameraRestartRequested && !destroyed) {
+          cameraRestartRequested = false;
+          startCamera();
+        }
+      }
     }
-  });
+  }
 
-  document.getElementById("catalog-select").addEventListener("change", (e) => {
-    if (e.target.value) {
-      applyBarcodeSelection(e.target.value);
+  function currentShareUrl() {
+    const vm = selectViewModel(state);
+    const base = String(win.location.href || "").split("#")[0];
+    return `${base}${vm.shareHash}`;
+  }
+
+  async function copyShareLink() {
+    const url = currentShareUrl();
+    try {
+      await win.navigator.clipboard.writeText(url);
+      dispatch({ type: "SET_NOTICE", text: "Share link copied to the clipboard." });
+    } catch {
+      dispatch({ type: "SET_NOTICE", text: `Copy this link: ${url}` });
     }
-  });
+  }
 
-  document.querySelectorAll(".resin-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const rCode = Number(btn.getAttribute("data-resin"));
-      const meta = RESIN_CODE_METADATA[rCode];
-      if (!meta) return;
-      state.barcode = "";
-      state.resinCode = rCode;
-      state.materialId = meta.defaultMaterialId;
-      document.getElementById("catalog-select").value = "";
-      triggerLaserSweep();
-      updateUI();
+  function printWithMode(mode) {
+    const body = doc.body;
+    if (mode === "report") {
+      const vm = selectViewModel(state);
+      els.printReport.innerHTML = renderPrintReport(vm, state.batchResult);
+    }
+    body.setAttribute("data-print-mode", mode);
+    const cleanup = () => {
+      body.removeAttribute("data-print-mode");
+      els.printReport.innerHTML = "";
+      win.removeEventListener("afterprint", cleanup);
+    };
+    win.addEventListener("afterprint", cleanup);
+    win.print();
+  }
+
+  function openHelp() {
+    const dialog = els.shortcutDialog;
+    if (dialog.open) return;
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+  }
+
+  function closeHelp() {
+    const dialog = els.shortcutDialog;
+    if (!dialog.open) return;
+    if (typeof dialog.close === "function") {
+      dialog.close();
+    } else {
+      dialog.removeAttribute("open");
+    }
+  }
+
+  function runBenchmarkNow() {
+    dispatch({ type: "SET_BENCHMARK", result: runBenchmark({ now }) });
+  }
+
+  function exportBatch(kind) {
+    if (!state.batchResult || state.batchResult.rows.length === 0) return;
+    if (kind === "csv") {
+      download("bincheck-batch-results.csv", "text/csv", batchResultToCsv(state.batchResult));
+    } else {
+      download("bincheck-batch-results.json", "application/json", batchResultToJson(state.batchResult));
+    }
+  }
+
+  function perform(actionId) {
+    switch (actionId) {
+      case "focus-barcode":
+        els.barcodeInput.focus();
+        break;
+      case "city-Riverside-tx":
+        dispatch({ type: "SET_CITY_MODE", mode: "Riverside-tx" });
+        sweep();
+        break;
+      case "city-houston-tx":
+        dispatch({ type: "SET_CITY_MODE", mode: "houston-tx" });
+        sweep();
+        break;
+      case "city-compare":
+        dispatch({ type: "SET_CITY_MODE", mode: "compare" });
+        sweep();
+        break;
+      case "add-to-cart":
+        dispatch({ type: "ADD_TO_CART" });
+        break;
+      case "goto-batch": {
+        const heading = doc.getElementById("batch-csv-heading");
+        if (heading && typeof heading.scrollIntoView === "function") {
+          heading.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+        }
+        els.csvInput.focus();
+        break;
+      }
+      case "run-benchmark":
+        runBenchmarkNow();
+        break;
+      case "print-report":
+        printWithMode("report");
+        break;
+      case "open-help":
+        openHelp();
+        break;
+      case "close-help":
+        closeHelp();
+        break;
+      default:
+        break;
+    }
+  }
+
+  function handleClick(event) {
+    const target = event.target;
+    if (target === els.shortcutDialog) {
+      closeHelp();
+      return;
+    }
+    const actionEl = target && typeof target.closest === "function" ? target.closest("[data-action]") : null;
+    if (!actionEl) return;
+    const action = actionEl.getAttribute("data-action");
+    switch (action) {
+      case "set-city":
+        dispatch({ type: "SET_CITY_MODE", mode: actionEl.getAttribute("data-city-mode") });
+        sweep();
+        break;
+      case "demo": {
+        const scenario = DEMO_SCENARIOS[actionEl.getAttribute("data-demo")];
+        if (scenario) {
+          dispatch({ type: "APPLY_DEMO", scenario });
+          sweep();
+        }
+        break;
+      }
+      case "commit-barcode":
+        dispatch({ type: "COMMIT_BARCODE", raw: els.barcodeInput.value });
+        sweep();
+        break;
+      case "select-resin":
+        dispatch({ type: "SELECT_RESIN", code: Number(actionEl.getAttribute("data-resin")) });
+        sweep();
+        break;
+      case "add-cart":
+        dispatch({ type: "ADD_TO_CART" });
+        break;
+      case "clear-cart":
+        dispatch({ type: "CLEAR_CART" });
+        break;
+      case "remove-cart":
+        dispatch({ type: "REMOVE_FROM_CART", index: Number(actionEl.getAttribute("data-index")) });
+        break;
+      case "run-batch":
+        dispatch({ type: "SET_CSV_TEXT", text: els.csvInput.value });
+        dispatch({ type: "RUN_BATCH" });
+        break;
+      case "load-sample":
+        dispatch({ type: "LOAD_SAMPLE_CSV" });
+        break;
+      case "clear-batch":
+        dispatch({ type: "CLEAR_BATCH" });
+        break;
+      case "export-csv":
+        exportBatch("csv");
+        break;
+      case "export-json":
+        exportBatch("json");
+        break;
+      case "run-benchmark":
+        runBenchmarkNow();
+        break;
+      case "export-benchmark":
+        if (state.benchmarkResult) {
+          download("bincheck-benchmark-report.json", "application/json", benchmarkToJson(state.benchmarkResult));
+        }
+        break;
+      case "copy-link":
+        copyShareLink();
+        break;
+      case "print-report":
+        printWithMode("report");
+        break;
+      case "print-guide":
+        printWithMode("guide");
+        break;
+      case "open-help":
+        openHelp();
+        break;
+      case "close-help":
+        closeHelp();
+        break;
+      case "camera-start":
+        startCamera();
+        break;
+      case "camera-stop":
+        stopCamera();
+        break;
+      default:
+        break;
+    }
+  }
+
+  function handleInput(event) {
+    const target = event.target;
+    if (!target) return;
+    if (target.id === "barcode-input") {
+      dispatch({ type: "TYPE_BARCODE", raw: target.value });
+    } else if (target.id === "csv-input") {
+      dispatch({ type: "SET_CSV_TEXT", text: target.value });
+    }
+  }
+
+  async function handleChange(event) {
+    const target = event.target;
+    if (!target) return;
+    if (target.id === "material-select") {
+      dispatch({ type: "SELECT_MATERIAL", materialId: target.value });
+      sweep();
+    } else if (target.id === "condition-select") {
+      dispatch({ type: "SET_CONDITION", condition: target.value });
+      sweep();
+    } else if (target.id === "catalog-select") {
+      if (target.value) {
+        dispatch({ type: "COMMIT_BARCODE", raw: target.value });
+        sweep();
+      }
+    } else if (target.id === "csv-file-input") {
+      const file = target.files && target.files[0];
+      if (!file) return;
+      if (file.size > BATCH_LIMITS.maxBytes) {
+        dispatch({ type: "SET_NOTICE", text: `File is ${file.size} bytes. The limit is ${BATCH_LIMITS.maxBytes} bytes.` });
+      } else {
+        try {
+          const text = await file.text();
+          dispatch({ type: "SET_CSV_TEXT", text });
+          dispatch({ type: "RUN_BATCH" });
+        } catch {
+          dispatch({ type: "SET_NOTICE", text: "That file could not be read." });
+        }
+      }
+      target.value = "";
+    }
+  }
+
+  function handleKeydown(event) {
+    const target = event.target || {};
+    if (event.key === "Enter" && target.id === "barcode-input") {
+      event.preventDefault();
+      dispatch({ type: "COMMIT_BARCODE", raw: target.value });
+      sweep();
+      return;
+    }
+    const id = resolveShortcut({
+      key: event.key,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      altKey: event.altKey,
+      targetTag: target.tagName,
+      isContentEditable: target.isContentEditable
     });
-  });
+    if (!id) return;
+    const dialogOpen = els.shortcutDialog.open === true;
+    if (id === "close-help") {
+      if (dialogOpen) {
+        event.preventDefault();
+        perform(id);
+      }
+      return;
+    }
+    if (dialogOpen) return;
+    event.preventDefault();
+    perform(id);
+  }
 
-  document.getElementById("material-select").addEventListener("change", (e) => {
-    state.barcode = "";
-    state.materialId = e.target.value;
-    const matchResin = e.target.value.match(/^resin-(\d)/);
-    state.resinCode = matchResin ? Number(matchResin[1]) : null;
-    document.getElementById("catalog-select").value = "";
-    triggerLaserSweep();
-    updateUI();
-  });
+  // Initial static fills that must track engine data.
+  for (const item of VERIFIED_BARCODE_CATALOG) {
+    const option = doc.createElement("option");
+    option.value = item.upc;
+    option.textContent = `${item.upc} - ${item.productName}`;
+    els.catalogSelect.appendChild(option);
+  }
+  els.shortcutList.innerHTML = renderShortcutList();
+  els.statBarcodes.textContent = `${VERIFIED_BARCODE_CATALOG.length} GS1 codes`;
+  els.statMaterials.textContent = `${Object.keys(MATERIAL_CATEGORIES).length} Streams`;
+  els.statCities.textContent = `${Object.keys(SUPPORTED_CITIES).length} Cities`;
 
-  document.getElementById("condition-select").addEventListener("change", (e) => {
-    state.condition = e.target.value;
-    triggerLaserSweep();
-    updateUI();
-  });
+  const hydrated = decodeShareHash(win.location && win.location.hash);
+  if (Object.keys(hydrated.patch).length > 0) {
+    state = reduce(state, { type: "HYDRATE", patch: hydrated.patch });
+  }
 
-  document.getElementById("add-to-batch-btn").addEventListener("click", () => {
-    state.batchItems.push({
-      barcode: state.barcode,
-      materialId: state.materialId,
-      resinCode: state.resinCode,
-      condition: state.condition
-    });
-    renderBatchSimulator();
-  });
+  doc.addEventListener("click", handleClick);
+  doc.addEventListener("input", handleInput);
+  doc.addEventListener("change", handleChange);
+  doc.addEventListener("keydown", handleKeydown);
+  win.addEventListener("pagehide", stopCamera);
 
-  document.getElementById("clear-batch-btn").addEventListener("click", () => {
-    state.batchItems = [];
-    renderBatchSimulator();
-  });
+  render();
 
-  document.getElementById("print-cheatsheet-btn").addEventListener("click", () => {
-    window.print();
-  });
-
-  document.getElementById("camera-scan-btn").addEventListener("click", () => {
-    startCameraBarcodeScan();
-  });
-
-  document.getElementById("camera-close-btn").addEventListener("click", () => {
-    stopCameraScan();
-  });
+  return {
+    getState: () => state,
+    dispatch,
+    render,
+    destroy() {
+      destroyed = true;
+      stopCamera();
+      doc.removeEventListener("click", handleClick);
+      doc.removeEventListener("input", handleInput);
+      doc.removeEventListener("change", handleChange);
+      doc.removeEventListener("keydown", handleKeydown);
+      win.removeEventListener("pagehide", stopCamera);
+      if (noticeTimer !== null) win.clearTimeout(noticeTimer);
+      noticeTimer = null;
+    }
+  };
 }
 
-if (typeof document !== "undefined") {
-  initCatalogDropdown();
-  bindEvents();
-  updateUI();
+if (typeof document !== "undefined" && typeof window !== "undefined") {
+  createApp({ document, window });
 }
