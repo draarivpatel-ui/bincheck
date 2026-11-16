@@ -1,13 +1,14 @@
 {
   "name": "bincheck",
   "version": "1.0.0",
-  "description": "BinCheck: Verified Houston and Sugar Land Municipal Recycling and Barcode Rules Engine",
+  "description": "BinCheck: Sugar Land and Houston municipal recycling rules engine with GS1 barcode checks, batch CSV inspection and a snapshot-anchored calibration benchmark",
   "type": "module",
   "main": "src/bincheck-engine.js",
   "scripts": {
-    "test": "node --test tests/bincheck.test.js tests/dom-smoke.test.js",
+    "test": "node --test tests/",
     "verify:sources": "node scripts/verify-city-sources.js --offline",
-    "verify:live": "node scripts/verify-city-sources.js --live"
+    "verify:live": "node scripts/verify-city-sources.js --live",
+    "benchmark": "node scripts/run-benchmark.js"
   },
   "repository": {
     "type": "git",

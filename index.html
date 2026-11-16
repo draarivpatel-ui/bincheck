@@ -39,24 +39,23 @@
             <path d="M7 22.5H21" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
           </svg>
           <h1 class="site-title">BinCheck</h1>
-          <span class="spec-index-code">SPEC // FB-HOU-2026</span>
+          <span class="spec-index-code tabular" title="Date the bundled Sugar Land and Houston rules snapshot was last checked against the city sites">Rules 2026-10-20</span>
         </div>
-        <p class="site-subtitle">Houston &amp; Sugar Land Municipal Recycling, SPI Resin (#1-#7) &amp; GS1 Barcode Rules Engine</p>
       </div>
 
       <div class="header-actions">
-        <div class="city-switcher" role="group" aria-label="Jurisdiction Mode">
-          <button type="button" class="city-btn active" data-city-mode="sugar-land-tx">
+        <div class="city-switcher" role="group" aria-label="Jurisdiction mode">
+          <button type="button" class="city-btn active" data-action="set-city" data-city-mode="sugar-land-tx" aria-pressed="true">
             <span class="btn-slide-wrap"><span class="btn-slide-text">Sugar Land, TX</span></span>
           </button>
-          <button type="button" class="city-btn" data-city-mode="houston-tx">
+          <button type="button" class="city-btn" data-action="set-city" data-city-mode="houston-tx" aria-pressed="false">
             <span class="btn-slide-wrap"><span class="btn-slide-text">Houston, TX</span></span>
           </button>
-          <button type="button" class="city-btn" data-city-mode="compare">
+          <button type="button" class="city-btn" data-action="set-city" data-city-mode="compare" aria-pressed="false">
             <span class="btn-slide-wrap"><span class="btn-slide-text">Side-by-Side Comparison</span></span>
           </button>
         </div>
-        <button type="button" id="print-cheatsheet-btn" class="secondary-btn print-trigger-btn">
+        <button type="button" id="print-cheatsheet-btn" class="secondary-btn print-trigger-btn" data-action="print-guide">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 9V2h12v7" />
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -66,6 +65,13 @@
         </button>
       </div>
     </div>
+    <nav class="container section-nav" aria-label="Page sections">
+      <a class="nav-link" href="#lookup-heading">Inspect an item</a>
+      <a class="nav-link" href="#batch-csv-heading">Batch CSV</a>
+      <a class="nav-link" href="#benchmark-heading">Benchmark</a>
+      <a class="nav-link" href="#cheatsheet-heading">Kitchen guide</a>
+      <button type="button" id="shortcut-help-btn" class="nav-link nav-help" data-action="open-help" aria-haspopup="dialog">Shortcuts <kbd>?</kbd></button>
+    </nav>
   </header>
 
   <main id="main-content" class="container main-layout">
@@ -79,8 +85,8 @@
         </p>
         <dl class="spec-telemetry-strip">
           <div class="telemetry-cell">
-            <dt>Verified TX Barcodes</dt>
-            <dd class="tabular">28 GS1 UPCs</dd>
+            <dt>Demo barcode catalog</dt>
+            <dd class="tabular" id="stat-barcodes">28 GS1 codes</dd>
           </div>
           <div class="telemetry-cell">
             <dt>Polymer Mold Codes</dt>
@@ -88,21 +94,17 @@
           </div>
           <div class="telemetry-cell">
             <dt>Material Profiles</dt>
-            <dd class="tabular">17 Streams</dd>
+            <dd class="tabular" id="stat-materials">17 Streams</dd>
           </div>
           <div class="telemetry-cell">
             <dt>Ordinance Jurisdictions</dt>
-            <dd class="tabular">2 Cities</dd>
+            <dd class="tabular" id="stat-cities">2 Cities</dd>
           </div>
         </dl>
       </div>
 
       <div class="hero-schematic-col">
         <div class="schematic-frame" id="hero-media-frame">
-          <div class="schematic-top-bar">
-            <span>FIG 01 // MRF OPTICAL NIR &amp; MATERIAL PLATE</span>
-            <span class="tabular">1,100 - 1,700 nm</span>
-          </div>
           <img
             src="./img/hero-materials.png"
             alt="Municipal material specification overview showing PET bottles, HDPE jugs, corrugated cardboard, and SPI resin stamps"
@@ -150,8 +152,8 @@
             </svg>
           </div>
           <div class="schematic-foot-bar">
-            <span>REPUBLIC SERVICES (SUGAR LAND)</span>
-            <span>FCC ENVIRONMENTAL MRF (HOUSTON)</span>
+            <span>Republic Services (Sugar Land)</span>
+            <span>FCC Environmental MRF (Houston)</span>
           </div>
         </div>
       </div>
@@ -159,35 +161,34 @@
 
     <section class="demo-bar card no-print" aria-labelledby="quick-demo-heading">
       <div class="demo-header">
-        <h2 id="quick-demo-heading">One-Tap Instant Scenarios</h2>
-        <span class="demo-hint">Inspect municipal rules and MRF sorting physics for common household items:</span>
+        <h2 id="quick-demo-heading">Try a common item</h2>
       </div>
       <div class="demo-buttons">
-        <button type="button" class="demo-pill" data-demo="pet-bottle">
+        <button type="button" class="demo-pill" data-action="demo" data-demo="pet-bottle">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4v3l3 4v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9l3-4V2z"/><line x1="7" y1="13" x2="17" y2="13"/></svg>
           <span>Try #1 PET Water Bottle</span>
         </button>
-        <button type="button" class="demo-pill" data-demo="pizza-box">
+        <button type="button" class="demo-pill" data-action="demo" data-demo="pizza-box">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
           <span>Try Greasy Pizza Box</span>
         </button>
-        <button type="button" class="demo-pill" data-demo="glass-jar">
+        <button type="button" class="demo-pill" data-action="demo" data-demo="glass-jar">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="3" rx="1"/><path d="M7 6h10l1 4v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-9l1-4z"/></svg>
           <span>Try Glass Jar (Sugar Land vs Houston)</span>
         </button>
-        <button type="button" class="demo-pill" data-demo="plastic-bag">
+        <button type="button" class="demo-pill" data-action="demo" data-demo="plastic-bag">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
           <span>Try Plastic Grocery Bag</span>
         </button>
-        <button type="button" class="demo-pill" data-demo="lithium-battery">
+        <button type="button" class="demo-pill" data-action="demo" data-demo="lithium-battery">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="16" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/><polyline points="11 10 8 12 12 12 9 14"/></svg>
           <span>Try Lithium Battery</span>
         </button>
-        <button type="button" class="demo-pill" data-demo="styrofoam">
+        <button type="button" class="demo-pill" data-action="demo" data-demo="styrofoam">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14l-1.5 15a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8L5 4z"/><line x1="3" y1="4" x2="21" y2="4"/></svg>
           <span>Try #6 Styrofoam Cup</span>
         </button>
-        <button type="button" class="demo-pill" data-demo="yard-waste">
+        <button type="button" class="demo-pill" data-action="demo" data-demo="yard-waste">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
           <span>Try Yard Trimmings Bag</span>
         </button>
@@ -215,13 +216,19 @@
                 inputmode="numeric"
                 placeholder="e.g. 041220576463 (H-E-B Spring Water)"
                 autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                maxlength="40"
+                enterkeyhint="search"
+                aria-describedby="barcode-status barcode-math-strip"
+                aria-invalid="false"
                 class="tabular"
               />
             </div>
-            <button type="button" id="barcode-scan-btn" class="primary-btn">
+            <button type="button" id="barcode-scan-btn" class="primary-btn" data-action="commit-barcode">
               <span class="btn-slide-wrap"><span class="btn-slide-text">Verify UPC</span></span>
             </button>
-            <button type="button" id="camera-scan-btn" class="secondary-btn" title="Scan barcode with device camera">
+            <button type="button" id="camera-scan-btn" class="secondary-btn" data-action="camera-start" title="Scan barcode with device camera">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
@@ -229,67 +236,67 @@
               <span>Camera Scan</span>
             </button>
           </div>
-          <div id="barcode-status" class="barcode-status tabular" aria-live="polite"></div>
-          <div id="barcode-math-strip" class="barcode-math-strip tabular" aria-live="polite"></div>
+          <div id="barcode-status" class="barcode-status tabular" role="status" aria-live="polite"></div>
+          <div id="barcode-math-strip" class="barcode-math-strip tabular"></div>
           <div id="camera-preview-wrap" class="camera-preview-wrap hidden">
             <video id="camera-video" playsinline muted></video>
-            <button type="button" id="camera-close-btn" class="secondary-btn">Stop Camera</button>
+            <button type="button" id="camera-close-btn" class="secondary-btn" data-action="camera-stop">Stop Camera</button>
           </div>
         </div>
 
         <div class="control-group">
-          <label for="catalog-select" class="field-label">Or Pick from 28 Verified Texas Grocery &amp; Household Barcodes</label>
+          <label for="catalog-select" class="field-label">Or pick from the demo catalog <span class="data-badge is-demo" title="Every code passes the GS1 check digit. Product pairings are illustrative, not scanned from shelves.">Demo data</span></label>
           <select id="catalog-select" class="select-input tabular">
-            <option value="">-- Select a verified Texas product barcode --</option>
+            <option value="">Choose a catalog barcode</option>
           </select>
         </div>
 
         <div class="control-group">
           <span class="field-label">SPI Plastic Resin Identification Code (#1 to #7)</span>
           <div class="resin-grid" role="group" aria-label="SPI Resin Codes">
-            <button type="button" class="resin-btn active" data-resin="1">
+            <button type="button" class="resin-btn active" data-action="select-resin" data-resin="1" aria-pressed="true">
               <svg class="resin-triangle-svg" width="28" height="26" viewBox="0 0 32 30" fill="none" aria-hidden="true">
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
               </svg>
               <span class="resin-num tabular">#1</span>
               <span class="resin-name">PETE</span>
             </button>
-            <button type="button" class="resin-btn" data-resin="2">
+            <button type="button" class="resin-btn" data-action="select-resin" data-resin="2" aria-pressed="false">
               <svg class="resin-triangle-svg" width="28" height="26" viewBox="0 0 32 30" fill="none" aria-hidden="true">
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
               </svg>
               <span class="resin-num tabular">#2</span>
               <span class="resin-name">HDPE</span>
             </button>
-            <button type="button" class="resin-btn" data-resin="3">
+            <button type="button" class="resin-btn" data-action="select-resin" data-resin="3" aria-pressed="false">
               <svg class="resin-triangle-svg" width="28" height="26" viewBox="0 0 32 30" fill="none" aria-hidden="true">
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
               </svg>
               <span class="resin-num tabular">#3</span>
               <span class="resin-name">PVC</span>
             </button>
-            <button type="button" class="resin-btn" data-resin="4">
+            <button type="button" class="resin-btn" data-action="select-resin" data-resin="4" aria-pressed="false">
               <svg class="resin-triangle-svg" width="28" height="26" viewBox="0 0 32 30" fill="none" aria-hidden="true">
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
               </svg>
               <span class="resin-num tabular">#4</span>
               <span class="resin-name">LDPE</span>
             </button>
-            <button type="button" class="resin-btn" data-resin="5">
+            <button type="button" class="resin-btn" data-action="select-resin" data-resin="5" aria-pressed="false">
               <svg class="resin-triangle-svg" width="28" height="26" viewBox="0 0 32 30" fill="none" aria-hidden="true">
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
               </svg>
               <span class="resin-num tabular">#5</span>
               <span class="resin-name">PP</span>
             </button>
-            <button type="button" class="resin-btn" data-resin="6">
+            <button type="button" class="resin-btn" data-action="select-resin" data-resin="6" aria-pressed="false">
               <svg class="resin-triangle-svg" width="28" height="26" viewBox="0 0 32 30" fill="none" aria-hidden="true">
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
               </svg>
               <span class="resin-num tabular">#6</span>
               <span class="resin-name">PS Foam</span>
             </button>
-            <button type="button" class="resin-btn" data-resin="7">
+            <button type="button" class="resin-btn" data-action="select-resin" data-resin="7" aria-pressed="false">
               <svg class="resin-triangle-svg" width="28" height="26" viewBox="0 0 32 30" fill="none" aria-hidden="true">
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
               </svg>
@@ -335,110 +342,181 @@
         </div>
 
         <div class="batch-actions">
-          <button type="button" id="add-to-batch-btn" class="secondary-btn">
+          <button type="button" id="add-to-batch-btn" class="secondary-btn" data-action="add-cart">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span>Add Current Item to Virtual Cart Load</span>
+            <span>Add Current Item to Virtual Cart <kbd>A</kbd></span>
           </button>
-          <button type="button" id="clear-batch-btn" class="text-btn">Reset Virtual Cart</button>
+          <button type="button" id="clear-batch-btn" class="text-btn" data-action="clear-cart">Reset Virtual Cart</button>
         </div>
       </section>
 
-      <section class="card result-panel" id="result-panel-card" aria-live="polite">
+      <section class="card result-panel" id="result-panel-card" aria-labelledby="result-heading">
+        <h2 id="result-heading" class="sr-only">Inspection result</h2>
+        <p id="result-live" class="sr-only" role="status" aria-live="polite"></p>
         <div id="evaluation-output"></div>
+        <div class="result-actions no-print">
+          <button type="button" id="share-link-btn" class="secondary-btn" data-action="copy-link">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span>Copy share link</span>
+          </button>
+          <button type="button" id="print-report-btn" class="secondary-btn" data-action="print-report">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Print inspection report <kbd>P</kbd></span>
+          </button>
+        </div>
       </section>
     </div>
 
     <section class="card batch-panel no-print" aria-labelledby="batch-heading">
       <div class="batch-header">
         <div>
-          <h2 id="batch-heading">Household Cart Contamination Simulator</h2>
-          <p class="batch-subtitle">Test a multi-item bin load to see whether MRF optical sorters and star-screens accept the cart or flag a load-ruining tangler or battery hazard.</p>
+          <h2 id="batch-heading">Virtual cart</h2>
         </div>
-        <div id="batch-summary-badge" class="stream-badge tabular"></div>
+        <div id="batch-summary-badge" class="stream-badge tabular" role="status" aria-live="polite"></div>
       </div>
       <div id="batch-items-container" class="batch-items-container"></div>
     </section>
 
-    <section class="card cheatsheet-section" id="printable-cheatsheet" aria-labelledby="cheatsheet-heading">
+    <section class="card batch-csv-panel no-print" aria-labelledby="batch-csv-heading">
+      <div class="batch-header">
+        <div>
+          <h2 id="batch-csv-heading">Batch CSV inspection</h2>
+        </div>
+        <span class="mono-tag tabular">Up to 500 rows, 256 KB</span>
+      </div>
+      <div class="csv-grid">
+        <div class="csv-input-col">
+          <label for="csv-input" class="field-label">Paste CSV text</label>
+          <textarea id="csv-input" class="csv-textarea tabular" rows="9" spellcheck="false" autocomplete="off" aria-describedby="csv-help" placeholder="label,barcode,material,resin,condition"></textarea>
+          <p id="csv-help" class="field-help">Columns: label, barcode, material, resin, condition. A header row is optional; without one, columns are read as barcode, material, resin, condition, label. Material uses ids like resin-1-pet or glass-jar-bottle. Lines starting with # are ignored. Rows BinCheck cannot identify are listed as errors and never guessed.</p>
+          <div class="csv-actions">
+            <button type="button" id="csv-run-btn" class="primary-btn" data-action="run-batch">Run inspection</button>
+            <button type="button" id="csv-sample-btn" class="secondary-btn" data-action="load-sample">Load sample</button>
+            <button type="button" id="csv-clear-btn" class="text-btn" data-action="clear-batch">Clear</button>
+          </div>
+          <label for="csv-file-input" class="field-label file-label">Or choose a CSV file</label>
+          <input type="file" id="csv-file-input" class="file-input" accept=".csv,text/csv,text/plain" />
+        </div>
+        <div class="csv-output-col">
+          <div id="csv-results" class="csv-results" aria-live="polite">
+            <p class="empty-batch-msg">No batch yet. Load the sample or paste your own rows, then choose Run inspection.</p>
+          </div>
+          <div class="export-actions">
+            <button type="button" id="export-csv-btn" class="secondary-btn" data-action="export-csv" disabled>Download results CSV</button>
+            <button type="button" id="export-json-btn" class="secondary-btn" data-action="export-json" disabled>Download results JSON</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card benchmark-panel no-print" aria-labelledby="benchmark-heading">
+      <div class="batch-header">
+        <div>
+          <h2 id="benchmark-heading">Calibration benchmark</h2>
+        </div>
+        <div class="benchmark-actions">
+          <button type="button" id="benchmark-run-btn" class="primary-btn" data-action="run-benchmark">Run benchmark <kbd>R</kbd></button>
+          <button type="button" id="benchmark-export-btn" class="secondary-btn" data-action="export-benchmark" disabled>Download report JSON</button>
+        </div>
+      </div>
+      <div id="benchmark-output" class="benchmark-output" aria-live="polite">
+        <p class="empty-batch-msg">Not run yet. Run it to grade the engine in this tab against ground truth anchored to the city rules snapshot: cart routing, disposal streams, risk tiers, barcode check digits, and latency.</p>
+      </div>
+    </section>
+
+    <section class="card cheatsheet-section print-guide" id="printable-cheatsheet" aria-labelledby="cheatsheet-heading">
       <div class="cheatsheet-header">
         <div>
-          <h2 id="cheatsheet-heading">Sugar Land vs. Houston 1-Page Kitchen &amp; Garage Sorting Guide</h2>
-          <p class="cheatsheet-meta">Verified against City of Sugar Land Solid Waste &amp; Recycling (Republic Services / Fort Bend County Recycling Center) and City of Houston SWMD (Westpark / Neighborhood Depositories) ordinances.</p>
+          <h2 id="cheatsheet-heading">Kitchen and garage sorting guide</h2>
         </div>
-        <span class="mono-tag tabular">ORDINANCE MATRIX // 2026</span>
+        <span class="data-badge is-sourced">From city sites, checked 2026-10-20</span>
       </div>
       <div class="table-wrap">
-        <table class="comparison-table">
+        <table class="comparison-table stack-table">
+          <caption class="sr-only">Sugar Land and Houston curbside rules by household item</caption>
           <thead>
             <tr>
-              <th>Household Item / Material</th>
-              <th>City of Sugar Land, TX (Republic Services)</th>
-              <th>City of Houston, TX (SWMD)</th>
-              <th>MRF Sorting Physics &amp; Preparation Rule</th>
+              <th scope="col">Household Item / Material</th>
+              <th scope="col">City of Sugar Land, TX (Republic Services)</th>
+              <th scope="col">City of Houston, TX (SWMD)</th>
+              <th scope="col">MRF Sorting Physics &amp; Preparation Rule</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><strong>#1 PET &amp; #2 HDPE Bottles/Jugs</strong></td>
-              <td><span class="table-status status-ok">Recycle in Curbside Cart</span></td>
-              <td><span class="table-status status-ok">Recycle in Green Cart</span></td>
-              <td>Empty all liquid so optical NIR air jets can eject containers accurately; keep loose.</td>
+              <td data-label="Household item"><strong>#1 PET &amp; #2 HDPE Bottles/Jugs</strong></td>
+              <td data-label="Sugar Land, TX"><span class="table-status status-ok">Recycle in Curbside Cart</span></td>
+              <td data-label="Houston, TX"><span class="table-status status-ok">Recycle in Green Cart</span></td>
+              <td data-label="Sorting physics and preparation">Empty all liquid so optical NIR air jets can eject containers accurately; keep loose.</td>
             </tr>
             <tr>
-              <td><strong>#5 Polypropylene (PP) Tubs</strong></td>
-              <td><span class="table-status status-ok">Recycle in Curbside Cart (Clean)</span></td>
-              <td><span class="table-status status-ok">Recycle in Green Cart (Clean)</span></td>
-              <td>Rinse dairy/food residue; discard foil peel lids in trash.</td>
+              <td data-label="Household item"><strong>#5 Polypropylene (PP) Tubs</strong></td>
+              <td data-label="Sugar Land, TX"><span class="table-status status-ok">Recycle in Curbside Cart (Clean)</span></td>
+              <td data-label="Houston, TX"><span class="table-status status-ok">Recycle in Green Cart (Clean)</span></td>
+              <td data-label="Sorting physics and preparation">Rinse dairy/food residue; discard foil peel lids in trash.</td>
             </tr>
             <tr>
-              <td><strong>Clean Glass Bottles &amp; Jars</strong></td>
-              <td><span class="table-status status-ok">Accepted in Curbside Cart</span></td>
-              <td><span class="table-status status-ok">Accepted in Green Cart &amp; Depositories</span></td>
-              <td>Remove metal caps (recycle separately). Never include broken glass, ceramics, or Pyrex.</td>
+              <td data-label="Household item"><strong>Clean Glass Bottles &amp; Jars</strong></td>
+              <td data-label="Sugar Land, TX"><span class="table-status status-ok">Accepted in Curbside Cart</span></td>
+              <td data-label="Houston, TX"><span class="table-status status-ok">Accepted in Green Cart &amp; Depositories</span></td>
+              <td data-label="Sorting physics and preparation">Remove metal caps (recycle separately). Never include broken glass, ceramics, or Pyrex.</td>
             </tr>
             <tr>
-              <td><strong>Greasy Pizza Boxes</strong></td>
-              <td><span class="table-status status-warn">Tear Clean Lid for Cart / Trash Bottom</span></td>
-              <td><span class="table-status status-warn">Tear Clean Lid for Cart / Trash Bottom</span></td>
-              <td>Pizza oil permanently weakens wet paper pulp; always tear off clean cardboard lids.</td>
+              <td data-label="Household item"><strong>Greasy Pizza Boxes</strong></td>
+              <td data-label="Sugar Land, TX"><span class="table-status status-warn">Tear Clean Lid for Cart / Trash Bottom</span></td>
+              <td data-label="Houston, TX"><span class="table-status status-warn">Tear Clean Lid for Cart / Trash Bottom</span></td>
+              <td data-label="Sorting physics and preparation">Pizza oil permanently weakens wet paper pulp; always tear off clean cardboard lids.</td>
             </tr>
             <tr>
-              <td><strong>Plastic Grocery Bags (#4 Film)</strong></td>
-              <td><span class="table-status status-stop">Never in Cart (Retail Store Drop-Off)</span></td>
-              <td><span class="table-status status-stop">Never in Cart (Retail Store Drop-Off)</span></td>
-              <td>#1 MRF shaft tangler. Return clean dry film to H-E-B, Kroger, or Target store kiosks.</td>
+              <td data-label="Household item"><strong>Plastic Grocery Bags (#4 Film)</strong></td>
+              <td data-label="Sugar Land, TX"><span class="table-status status-stop">Never in Cart (Retail Store Drop-Off)</span></td>
+              <td data-label="Houston, TX"><span class="table-status status-stop">Never in Cart (Retail Store Drop-Off)</span></td>
+              <td data-label="Sorting physics and preparation">#1 MRF shaft tangler. Return clean dry film to H-E-B, Kroger, or Target store kiosks.</td>
             </tr>
             <tr>
-              <td><strong>#6 Polystyrene / Styrofoam</strong></td>
-              <td><span class="table-status status-warn">Clean Foam to Fort Bend Drop-Off; Food Foam in Trash</span></td>
-              <td><span class="table-status status-stop">Black Garbage Cart Only</span></td>
-              <td>Fort Bend County Recycling Center (<span class="tabular">1200 Blume Rd</span>) densifies clean #6 foam; never place in carts.</td>
+              <td data-label="Household item"><strong>#6 Polystyrene / Styrofoam</strong></td>
+              <td data-label="Sugar Land, TX"><span class="table-status status-warn">Clean Foam to Fort Bend Drop-Off; Food Foam in Trash</span></td>
+              <td data-label="Houston, TX"><span class="table-status status-stop">Black Garbage Cart Only</span></td>
+              <td data-label="Sorting physics and preparation">Fort Bend County Recycling Center (1200 Blume Rd) densifies clean #6 foam; never place in carts.</td>
             </tr>
             <tr>
-              <td><strong>Yard Trimmings &amp; Brush</strong></td>
-              <td><span class="table-status status-ok">Kraft Paper Bags / Cans (<span class="tabular">40 lb</span> limit)</span></td>
-              <td><span class="table-status status-warn">City-Logo Compostable Bags Only (<span class="tabular">50 lb</span> limit)</span></td>
-              <td>Houston requires bags stamped with the official City biodegradable logo.</td>
+              <td data-label="Household item"><strong>Yard Trimmings &amp; Brush</strong></td>
+              <td data-label="Sugar Land, TX"><span class="table-status status-ok">Kraft Paper Bags / Cans (<span class="tabular">40 lb</span> limit)</span></td>
+              <td data-label="Houston, TX"><span class="table-status status-warn">City-Logo Compostable Bags Only (<span class="tabular">50 lb</span> limit)</span></td>
+              <td data-label="Sorting physics and preparation">Houston requires bags stamped with the official City biodegradable logo.</td>
             </tr>
             <tr>
-              <td><strong>Lithium &amp; Household Batteries</strong></td>
-              <td><span class="table-status status-stop">Fort Bend County HHW Drop-Off Only</span></td>
-              <td><span class="table-status status-stop">Houston Westpark / North ESC BOPA Only</span></td>
-              <td>Compaction punctures lithium cells, sparking MRF truck and facility fires. Tape terminals.</td>
+              <td data-label="Household item"><strong>Lithium &amp; Household Batteries</strong></td>
+              <td data-label="Sugar Land, TX"><span class="table-status status-stop">Fort Bend County HHW Drop-Off Only</span></td>
+              <td data-label="Houston, TX"><span class="table-status status-stop">Houston Westpark / North ESC BOPA Only</span></td>
+              <td data-label="Sorting physics and preparation">Compaction punctures lithium cells, sparking MRF truck and facility fires. Tape terminals.</td>
             </tr>
           </tbody>
         </table>
       </div>
+      <p class="cheatsheet-meta">Sources: City of Sugar Land Solid Waste and Recycling (Republic Services, Fort Bend County Recycling Center) and City of Houston SWMD (Westpark, Neighborhood Depositories).</p>
     </section>
+    <section id="print-report" class="print-report" aria-hidden="true"></section>
   </main>
+
+  <dialog id="shortcut-dialog" class="shortcut-dialog" aria-labelledby="shortcut-dialog-title">
+    <div class="dialog-head">
+      <h2 id="shortcut-dialog-title">Keyboard shortcuts</h2>
+      <button type="button" id="shortcut-close-btn" class="secondary-btn" data-action="close-help">Close</button>
+    </div>
+    <ul id="shortcut-list" class="shortcut-list"></ul>
+    <p class="field-help">Shortcuts pause while you type in a field.</p>
+  </dialog>
+
+  <p id="status-live" class="notice-bar no-print" role="status" aria-live="polite"></p>
 
   <footer class="site-footer no-print">
     <div class="container footer-four-corners">
       <div class="footer-corner-left">
-        <p class="footer-brand-line"><strong>BinCheck Municipal Rules Engine</strong> <span class="tabular">(v1.0.0)</span></p>
+        <p class="footer-brand-line"><strong>BinCheck Municipal Rules Engine</strong> <span class="tabular">(v1.1.0)</span></p>
         <p class="footer-coords tabular">Fort Bend County HHW: 1200 Blume Rd, Rosenberg, TX 77471 // Houston SWMD Westpark: 5900 Westpark Dr, Houston, TX 77057</p>
       </div>
       <div class="footer-corner-right">
