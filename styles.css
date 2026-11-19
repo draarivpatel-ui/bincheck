@@ -431,7 +431,6 @@ body {
   display: flex;
 }
 
-.schematic-top-bar,
 .schematic-foot-bar {
   display: flex;
   justify-content: space-between;
@@ -484,11 +483,6 @@ body {
   font-size: 1.18rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-
-.demo-hint {
-  font-size: 0.86rem;
-  color: var(--muted);
 }
 
 .demo-buttons {
