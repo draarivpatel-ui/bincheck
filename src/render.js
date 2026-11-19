@@ -46,7 +46,7 @@ export function formatPercent(value) {
  * isolation), so a reading below that is reported as such instead of as a
  * misleading 0.000 ms.
  */
-export const BROWSER_TIMER_FLOOR_MS = 0.1;
+const BROWSER_TIMER_FLOOR_MS = 0.1;
 
 export function formatMs(value, floor = 0) {
   if (value === null || value === undefined) return "n/a";
@@ -72,7 +72,7 @@ export function renderVerdictIcon(key, size = 15) {
   return `<svg class="verdict-icon" width="${Number(size)}" height="${Number(size)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 }
 
-export function getStreamSvgIcon(stream) {
+function getStreamSvgIcon(stream) {
   return renderVerdictIcon(verdictFor(stream).key);
 }
 
@@ -91,7 +91,7 @@ export function renderVerdictBanner(ev) {
 }
 
 /** Small verdict chip used in search results and the comparison columns. */
-export function renderVerdictChip(stream, prefix = "") {
+function renderVerdictChip(stream, prefix = "") {
   const v = verdictFor(stream);
   return `<span class="verdict-chip verdict-${escapeHtml(v.key)}">${renderVerdictIcon(v.key, 13)}<span>${prefix ? `<span class="verdict-chip-city">${escapeHtml(prefix)}</span> ` : ""}${escapeHtml(v.word)}</span></span>`;
 }
@@ -175,7 +175,7 @@ export function renderImpact(impact) {
     </div>`;
 }
 
-export function renderStreamBadge(stream, label) {
+function renderStreamBadge(stream, label) {
   return `<span class="stream-badge stream-${escapeHtml(stream)}">${getStreamSvgIcon(stream)}<span>${escapeHtml(label)}</span></span>`;
 }
 
@@ -241,7 +241,7 @@ function renderIssueList(issues) {
 }
 
 /** Evidence ladder and confidence pill. Confidence is provenance, not a probability. */
-export function renderEvidencePanel(assessment) {
+function renderEvidencePanel(assessment) {
   const steps = EVIDENCE_BASES.map((entry) => {
     const active = entry.id === assessment.basis;
     return `<li class="ladder-step${active ? " is-active" : ""}"${active ? ' aria-current="step"' : ""}><span class="ladder-rank tabular">${entry.rank}</span><span class="ladder-text">${escapeHtml(entry.label)}${active ? '<span class="sr-only"> (current basis)</span>' : ""}</span></li>`;
