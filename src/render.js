@@ -6,6 +6,7 @@
 
 import { EVIDENCE_BASES, RULES_SNAPSHOT_META } from "../js/bincheck-validate.js";
 import { SHORTCUTS } from "./state.js";
+import { verdictFor, LOAD_THRESHOLDS } from "./insights.js";
 
 export function escapeHtml(value) {
   return String(value ?? "")
@@ -55,14 +56,123 @@ export function formatMs(value, floor = 0) {
 
 const ICON_OPEN = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">`;
 
+const VERDICT_ICON_PATHS = {
+  recycle:
+    '<path d="M7 19H4.8a1.8 1.8 0 0 1-1.6-2.7L5.4 12.5"/><path d="M11 19h8.2a1.8 1.8 0 0 0 1.6-2.7l-1.2-2.1"/><path d="m14 16-3 3 3 3"/><path d="M8.3 13.4 5.4 12.5l-1 3.1"/><path d="m9.3 5.6 1.2-2.1a1.8 1.8 0 0 1 3.1 0l3.4 5.9"/><path d="m13.6 9.4 3.4-.4.4 3.2"/>',
+  trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>',
+  dropoff: '<path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/>',
+  yard: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10Z"/><path d="M2 21c0-3 1.9-5.4 5.2-6"/>',
+  split: '<path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.17-2.83L3 3"/><path d="m15 9 6-6"/>',
+  unknown: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.01"/>'
+};
+
+/** Crisp 24px-grid stroke icon for a verdict key (recycle, trash, dropoff, yard, split). */
+export function renderVerdictIcon(key, size = 15) {
+  const paths = VERDICT_ICON_PATHS[key] || VERDICT_ICON_PATHS.unknown;
+  return `<svg class="verdict-icon" width="${Number(size)}" height="${Number(size)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+
 export function getStreamSvgIcon(stream) {
-  if (stream === "RECYCLE_CART" || stream === "GREEN_WASTE") {
-    return `${ICON_OPEN}<polyline points="20 6 9 17 4 12"/></svg>`;
+  return renderVerdictIcon(verdictFor(stream).key);
+}
+
+/** Large color-coded verdict for one city: icon, one-word verdict, and the city's own label. */
+export function renderVerdictBanner(ev) {
+  const v = verdictFor(ev.stream);
+  return `
+    <div class="verdict-banner verdict-${escapeHtml(v.key)}" data-verdict="${escapeHtml(v.key)}" data-stream="${escapeHtml(ev.stream)}">
+      <span class="verdict-banner-icon">${renderVerdictIcon(v.key, 30)}</span>
+      <span class="verdict-banner-copy">
+        <strong class="verdict-banner-word">${escapeHtml(v.word)}</strong>
+        <span class="verdict-banner-where">${escapeHtml(ev.badgeLabel)}</span>
+      </span>
+      <span class="verdict-banner-city">${escapeHtml(ev.shortCityName || ev.cityName)}</span>
+    </div>`;
+}
+
+/** Small verdict chip used in search results and the comparison columns. */
+export function renderVerdictChip(stream, prefix = "") {
+  const v = verdictFor(stream);
+  return `<span class="verdict-chip verdict-${escapeHtml(v.key)}">${renderVerdictIcon(v.key, 13)}<span>${prefix ? `<span class="verdict-chip-city">${escapeHtml(prefix)}</span> ` : ""}${escapeHtml(v.word)}</span></span>`;
+}
+
+/** Instant search results: one button per match, with both cities' verdicts. */
+export function renderSearchResults(result) {
+  if (!result.query) return "";
+  if (result.results.length === 0) {
+    return `<p class="search-empty">No catalog item or material matches "${escapeHtml(result.query)}". Try a material word such as glass, foam or battery.</p>`;
   }
-  if (stream === "SPLIT_DISPOSAL") {
-    return `${ICON_OPEN}<path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>`;
+  const more = result.total > result.results.length ? `<p class="search-more tabular">Showing ${result.results.length} of ${result.total} matches.</p>` : "";
+  return `<ul class="search-list" role="list">${result.results
+    .map(
+      (r, i) => `
+      <li>
+        <button type="button" class="search-hit${r.citiesDiffer ? " cities-differ" : ""}" data-action="search-pick" data-kind="${escapeHtml(r.kind)}" data-value="${escapeHtml(r.value)}" data-search-index="${i}">
+          <span class="search-hit-text">
+            <span class="search-hit-title">${escapeHtml(r.title)}</span>
+            <span class="search-hit-sub tabular">${escapeHtml(r.sub)}${r.citiesDiffer ? ", cities differ" : ""}</span>
+          </span>
+          <span class="search-hit-verdicts">${renderVerdictChip(r.sugarLand.stream, "SL")}${renderVerdictChip(r.houston.stream, "HOU")}</span>
+        </button>
+      </li>`
+    )
+    .join("")}</ul>${more}`;
+}
+
+const LOAD_STATUS_TONE = {
+  CLEAN_CURBSIDE_LOAD: "recycle",
+  NEEDS_SORTING_FIXES: "split",
+  REJECTED_CONTAMINATED_LOAD: "dropoff",
+  EMPTY_BATCH: "unknown"
+};
+
+/** Contamination calculator output: cart grid, average versus worst-item bars, and the finding. */
+export function renderImpact(impact) {
+  if (impact.total === 0) {
+    return `<p class="empty-batch-msg">Add at least one item to see a load status.</p>`;
   }
-  return `${ICON_OPEN}<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+  const v = impact.itemVerdict;
+  const cells =
+    Array.from({ length: impact.cleanCount }, () => `<span class="impact-cell verdict-recycle" title="Clean #1 PET bottle"></span>`).join("") +
+    Array.from({ length: impact.itemCount }, () => `<span class="impact-cell verdict-${escapeHtml(v.key)} is-test" title="${escapeHtml(impact.itemTitle)}"></span>`).join("");
+  const bar = (label, value, tone) => `
+    <div class="impact-bar-row">
+      <span class="impact-bar-label">${escapeHtml(label)}</span>
+      <span class="impact-bar-track">
+        <span class="impact-bar-fill verdict-${escapeHtml(tone)}" style="width: ${Math.max(1, Math.min(100, value))}%"></span>
+        <span class="impact-tick" style="left: ${LOAD_THRESHOLDS.moderate}%"></span>
+        <span class="impact-tick" style="left: ${LOAD_THRESHOLDS.high}%"></span>
+        <span class="impact-tick is-reject" style="left: ${LOAD_THRESHOLDS.reject}%"></span>
+      </span>
+      <strong class="impact-bar-value tabular">${value}/100</strong>
+    </div>`;
+  const statusTone = LOAD_STATUS_TONE[impact.loadStatus] || "unknown";
+  const statusText = LOAD_STATUS_LABELS[impact.loadStatus] || impact.loadStatus;
+  let finding;
+  if (impact.itemCount === 0) {
+    finding = `With only clean bottles the load is clean, average risk ${impact.averageRiskScore}/100.`;
+  } else if (impact.averageHidesProblem) {
+    finding = `The average risk is only ${impact.averageRiskScore}/100, but load status follows the worst item. ${impact.itemCount === 1 ? "One" : impact.itemCount} ${escapeHtml(impact.itemTitle)} at ${impact.itemRisk}/100 makes this a "${escapeHtml(statusText)}" load, and adding more clean bottles cannot dilute it. ${escapeHtml(v.word)} is the right place for it.`;
+  } else if (impact.itemStream === "RECYCLE_CART") {
+    finding = `${escapeHtml(impact.itemTitle)} belongs in the cart (risk ${impact.itemRisk}/100), so the load stays "${escapeHtml(statusText)}".`;
+  } else {
+    finding = `Average risk ${impact.averageRiskScore}/100, worst item ${impact.maxRiskScore}/100: "${escapeHtml(statusText)}". ${escapeHtml(v.word)} is the right place for this item.`;
+  }
+  return `
+    <div class="impact-result">
+      <div class="impact-status verdict-${escapeHtml(statusTone)}">
+        ${renderVerdictIcon(statusTone, 20)}
+        <strong>${escapeHtml(statusText)}</strong>
+        <span class="tabular">${impact.total} items, ${impact.wrongItems} in the wrong bin (${formatPercent(impact.wrongShare)})</span>
+      </div>
+      <div class="impact-grid" role="img" aria-label="${impact.cleanCount} clean bottles and ${impact.itemCount} of the current item">${cells}</div>
+      <div class="impact-bars">
+        ${bar("Average risk", impact.averageRiskScore, impact.averageRiskScore >= LOAD_THRESHOLDS.reject ? "dropoff" : impact.averageRiskScore >= LOAD_THRESHOLDS.high ? "split" : "recycle")}
+        ${bar("Worst item", impact.maxRiskScore, statusTone)}
+        <p class="impact-scale tabular">Ticks at ${LOAD_THRESHOLDS.moderate}, ${LOAD_THRESHOLDS.high} and ${LOAD_THRESHOLDS.reject}, the same thresholds the cart and the engine use.</p>
+      </div>
+      <p class="impact-finding">${finding}</p>
+    </div>`;
 }
 
 export function renderStreamBadge(stream, label) {
@@ -166,8 +276,8 @@ export function renderSingleEvaluation(ev, assessment) {
         <p class="eval-jurisdiction">${escapeHtml(ev.cityName)}, ${escapeHtml(ev.operator)}</p>
         ${resinBadge}
       </div>
-      ${renderStreamBadge(ev.stream, ev.badgeLabel)}
     </div>
+    ${renderVerdictBanner(ev)}
     ${renderContaminationGauge(ev.contaminationRiskScore, ev.contaminationTier, ev.mrfFailureMode)}
     ${renderEvidencePanel(assessment)}
     <div class="eval-section">
@@ -191,7 +301,7 @@ function renderCompareColumn(ev, tag) {
         <h4>${escapeHtml(ev.cityName)}</h4>
         <span class="mono-tag tabular">${escapeHtml(tag)}</span>
       </div>
-      ${renderStreamBadge(ev.stream, ev.badgeLabel)}
+      ${renderVerdictBanner(ev)}
       <p class="compare-risk-line tabular"><strong>Contamination risk:</strong> ${ev.contaminationRiskScore}/100 (${escapeHtml(TIER_LABELS[ev.contaminationTier])})</p>
       <ol class="prep-list">${ev.prepSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
       <p class="compare-facility-line tabular"><strong>Facility:</strong> ${escapeHtml(ev.dropOffFacility.name)}, ${escapeHtml(ev.dropOffFacility.address)}</p>

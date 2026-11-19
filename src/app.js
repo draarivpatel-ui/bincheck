@@ -11,8 +11,11 @@ import {
   renderBatchReport,
   renderBenchmark,
   renderPrintReport,
-  renderShortcutList
+  renderShortcutList,
+  renderSearchResults,
+  renderImpact
 } from "./render.js";
+import { searchItems, computeContaminationImpact } from "./insights.js";
 
 const DEMO_SCENARIOS = {
   "pet-bottle": {
@@ -112,7 +115,16 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     cameraVideo: doc.getElementById("camera-video"),
     statBarcodes: doc.getElementById("stat-barcodes"),
     statMaterials: doc.getElementById("stat-materials"),
-    statCities: doc.getElementById("stat-cities")
+    statCities: doc.getElementById("stat-cities"),
+    itemSearch: doc.getElementById("item-search"),
+    searchResults: doc.getElementById("search-results"),
+    searchCount: doc.getElementById("search-count"),
+    impactClean: doc.getElementById("impact-clean"),
+    impactCount: doc.getElementById("impact-count"),
+    impactCleanValue: doc.getElementById("impact-clean-value"),
+    impactCountValue: doc.getElementById("impact-count-value"),
+    impactOutput: doc.getElementById("impact-output"),
+    impactItemLabel: doc.getElementById("impact-item-label")
   };
 
   const download = deps.download || ((filename, mime, text) => defaultDownload(doc, win, filename, mime, text));
@@ -129,6 +141,31 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   let destroyed = false;
   let lastHash = null;
   let lastLive = "";
+  let searchQuery = "";
+  let impactClean = 20;
+  let impactCount = 1;
+  const SEARCHABLE_COUNT = VERIFIED_BARCODE_CATALOG.length + Object.keys(MATERIAL_CATEGORIES).length;
+
+  function renderSearch() {
+    const result = searchItems(searchQuery);
+    els.searchResults.innerHTML = renderSearchResults(result);
+    els.searchCount.textContent = result.query
+      ? `${result.total} match${result.total === 1 ? "" : "es"}`
+      : `${SEARCHABLE_COUNT} items`;
+  }
+
+  function renderImpactPanel(vm) {
+    const impact = computeContaminationImpact({
+      query: vm.query,
+      city: vm.activeCity,
+      cleanCount: impactClean,
+      itemCount: impactCount
+    });
+    els.impactCleanValue.textContent = String(impact.cleanCount);
+    els.impactCountValue.textContent = String(impact.itemCount);
+    els.impactItemLabel.textContent = `${impact.itemTitle}, ${impact.city === "houston-tx" ? "Houston" : "Sugar Land"}`;
+    els.impactOutput.innerHTML = renderImpact(impact);
+  }
 
   function setIfDifferent(element, prop, value) {
     if (element && element[prop] !== value) {
@@ -192,6 +229,8 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       lastLive = vm.liveSummary;
       els.resultLive.textContent = vm.liveSummary;
     }
+
+    renderImpactPanel(vm);
 
     const cart = renderCart(vm.cartSummary);
     els.batchBadge.className = cart.badgeClass;
@@ -512,6 +551,22 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       case "camera-stop":
         stopCamera();
         break;
+      case "search-pick": {
+        const kind = actionEl.getAttribute("data-kind");
+        const value = actionEl.getAttribute("data-value");
+        if (kind === "barcode") {
+          dispatch({ type: "COMMIT_BARCODE", raw: value });
+        } else if (kind === "material") {
+          dispatch({ type: "SELECT_MATERIAL", materialId: value });
+          dispatch({ type: "SET_CONDITION", condition: "clean" });
+        }
+        sweep();
+        const heading = doc.getElementById("result-panel-card");
+        if (heading && typeof heading.scrollIntoView === "function") {
+          heading.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+        }
+        break;
+      }
       default:
         break;
     }
@@ -524,6 +579,13 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       dispatch({ type: "TYPE_BARCODE", raw: target.value });
     } else if (target.id === "csv-input") {
       dispatch({ type: "SET_CSV_TEXT", text: target.value });
+    } else if (target.id === "item-search") {
+      searchQuery = String(target.value || "").slice(0, 80);
+      renderSearch();
+    } else if (target.id === "impact-clean" || target.id === "impact-count") {
+      if (target.id === "impact-clean") impactClean = Number(target.value);
+      else impactCount = Number(target.value);
+      renderImpactPanel(selectViewModel(state));
     }
   }
 
@@ -561,6 +623,32 @@ export function createApp({ document: doc, window: win, deps = {} }) {
 
   function handleKeydown(event) {
     const target = event.target || {};
+    if (target.id === "item-search" && (event.key === "ArrowDown" || event.key === "Enter")) {
+      const first = els.searchResults.querySelector ? els.searchResults.querySelector("[data-search-index]") : null;
+      if (first) {
+        event.preventDefault();
+        if (event.key === "Enter") first.click();
+        else first.focus();
+      }
+      return;
+    }
+    if (target.getAttribute && target.getAttribute("data-search-index") !== null && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+      const hits = els.searchResults.querySelectorAll ? [...els.searchResults.querySelectorAll("[data-search-index]")] : [];
+      const i = hits.indexOf(target);
+      const next = event.key === "ArrowDown" ? hits[i + 1] : i <= 0 ? els.itemSearch : hits[i - 1];
+      if (next) {
+        event.preventDefault();
+        next.focus();
+      }
+      return;
+    }
+    if (event.key === "Escape" && target.id === "item-search" && searchQuery) {
+      event.preventDefault();
+      target.value = "";
+      searchQuery = "";
+      renderSearch();
+      return;
+    }
     if (event.key === "Enter" && target.id === "barcode-input") {
       event.preventDefault();
       dispatch({ type: "COMMIT_BARCODE", raw: target.value });
@@ -612,6 +700,16 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   doc.addEventListener("keydown", handleKeydown);
   win.addEventListener("pagehide", stopCamera);
 
+  // Hero image fallback, wired here because the CSP allows no inline handlers.
+  const heroFrame = doc.getElementById("hero-media-frame");
+  const heroImg = heroFrame && typeof heroFrame.querySelector === "function" ? heroFrame.querySelector("img") : null;
+  if (heroImg) {
+    heroImg.addEventListener("load", () => heroFrame.classList.remove("img-fallback-active"));
+    heroImg.addEventListener("error", () => heroFrame.classList.add("img-fallback-active"));
+    if (heroImg.complete) heroFrame.classList.toggle("img-fallback-active", heroImg.naturalWidth === 0);
+  }
+
+  renderSearch();
   render();
 
   return {
