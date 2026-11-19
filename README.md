@@ -85,7 +85,7 @@ bincheck/
 Requires Node.js 18 or newer. There is nothing to install.
 
 ```bash
-npm test                    # node --test tests/  (189 tests)
+npm test                    # node --test tests/*.test.js  (189 tests)
 npm run benchmark           # text report with latency
 node scripts/run-benchmark.js --json   # deterministic JSON report
 npm run verify:sources      # check the rules snapshot offline
