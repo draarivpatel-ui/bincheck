@@ -54,8 +54,6 @@ export function formatMs(value, floor = 0) {
   return `${value.toFixed(3)} ms`;
 }
 
-const ICON_OPEN = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">`;
-
 const VERDICT_ICON_PATHS = {
   recycle:
     '<path d="M7 19H4.8a1.8 1.8 0 0 1-1.6-2.7L5.4 12.5"/><path d="M11 19h8.2a1.8 1.8 0 0 0 1.6-2.7l-1.2-2.1"/><path d="m14 16-3 3 3 3"/><path d="M8.3 13.4 5.4 12.5l-1 3.1"/><path d="m9.3 5.6 1.2-2.1a1.8 1.8 0 0 1 3.1 0l3.4 5.9"/><path d="m13.6 9.4 3.4-.4.4 3.2"/>',
