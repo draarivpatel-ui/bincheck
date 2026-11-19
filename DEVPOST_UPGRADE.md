@@ -25,7 +25,7 @@ The calibration benchmark is the part I am proudest of. Its ground truth is not 
 | Disposal stream accuracy | 58 of 58 |
 | Single-digit barcode errors caught | 3,024 of 3,024 |
 | Adjacent digit swaps caught | 226 of 245, and every miss swaps two digits that differ by 5 |
-| Automated tests | 179 passing |
+| Automated tests | 189 passing |
 
 These numbers measure agreement with the published city rules, not accuracy at a real facility. No household testing has been done.
 

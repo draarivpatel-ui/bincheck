@@ -18,9 +18,19 @@
   --radius-sm: 4px;
   --radius: 6px;
   --shadow: 0 6px 20px rgba(14, 27, 22, 0.05), 0 1px 3px rgba(14, 27, 22, 0.04);
-  --font-sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-serif: "Instrument Serif", Georgia, serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --v-recycle: #047857;
+  --v-recycle-wash: #D1FAE5;
+  --v-trash: #374151;
+  --v-trash-wash: #E5E7EB;
+  --v-dropoff: #B4410A;
+  --v-dropoff-wash: #FFEDD5;
+  --v-yard: #3F6212;
+  --v-yard-wash: #ECFCCB;
+  --v-split: #6D28D9;
+  --v-split-wash: #EDE9FE;
   --ease-gate: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -68,7 +78,7 @@ body {
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-padding-top: 1rem;
 }
 
 [id$="-heading"] {
@@ -2399,4 +2409,411 @@ p.kpi-hint {
   .matrix-table {
     min-width: 520px;
   }
+}
+
+
+/* ===================================================================
+   Verdicts, instant search and the contamination calculator (2026-11-18)
+   One color per verdict, used everywhere a verdict appears.
+   =================================================================== */
+
+.verdict-recycle { --v: var(--v-recycle); --v-wash: var(--v-recycle-wash); }
+.verdict-trash { --v: var(--v-trash); --v-wash: var(--v-trash-wash); }
+.verdict-dropoff { --v: var(--v-dropoff); --v-wash: var(--v-dropoff-wash); }
+.verdict-yard { --v: var(--v-yard); --v-wash: var(--v-yard-wash); }
+.verdict-split { --v: var(--v-split); --v-wash: var(--v-split-wash); }
+.verdict-unknown { --v: var(--muted); --v-wash: var(--surface-alt); }
+
+.verdict-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 0.9rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--v);
+  border-left: 6px solid var(--v);
+  border-radius: var(--radius);
+  background: var(--v-wash);
+}
+
+.verdict-banner-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--v);
+  color: #FFFFFF;
+}
+
+.verdict-banner-copy {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.verdict-banner-word {
+  font-size: 1.55rem;
+  line-height: 1.1;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--v);
+}
+
+.verdict-banner-where {
+  font-size: 0.9rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.verdict-banner-city {
+  align-self: start;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.compare-col .verdict-banner {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.compare-col .verdict-banner-city {
+  display: none;
+}
+
+.compare-col .verdict-banner-word {
+  font-size: 1.25rem;
+}
+
+.verdict-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.55rem 0.18rem 0.4rem;
+  border-radius: 999px;
+  background: var(--v);
+  color: #FFFFFF;
+  font-size: 0.76rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.verdict-chip-city {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
+/* Search ------------------------------------------------------------ */
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.85rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  min-height: 3.1rem;
+  padding: 0.7rem 1rem 0.7rem 2.7rem;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+  outline: none;
+}
+
+.search-results:empty {
+  display: none;
+}
+
+.search-results {
+  margin-bottom: 1rem;
+}
+
+.search-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.search-hit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease-gate), background-color 140ms var(--ease-gate);
+}
+
+.search-hit:hover,
+.search-hit:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.search-hit.cities-differ {
+  border-left: 4px solid var(--v-split);
+}
+
+.search-hit-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.search-hit-title {
+  font-weight: 650;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.search-hit-sub {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.search-hit-verdicts {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.search-empty,
+.search-more {
+  font-size: 0.86rem;
+  color: var(--muted);
+  margin: 0.4rem 0 0;
+}
+
+.demo-subheading {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+/* Calculator -------------------------------------------------------- */
+
+.impact-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.6fr);
+  gap: 1.4rem;
+  align-items: start;
+}
+
+.impact-controls {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.impact-range {
+  width: 100%;
+  accent-color: var(--accent);
+  margin-bottom: 0.6rem;
+}
+
+.impact-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.impact-result {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.impact-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--v-wash);
+  border: 1px solid var(--v);
+  color: var(--ink);
+}
+
+.impact-status svg {
+  color: var(--v);
+}
+
+.impact-status strong {
+  color: var(--v);
+  font-size: 1.05rem;
+}
+
+.impact-status span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18px, 1fr));
+  gap: 4px;
+  max-width: 100%;
+}
+
+.impact-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: var(--v);
+  opacity: 0.55;
+}
+
+.impact-cell.is-test {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--v);
+}
+
+.impact-bars {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.impact-bar-row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) 4.4rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.impact-bar-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.impact-bar-track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+}
+
+.impact-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--v);
+  transition: width 360ms var(--ease-gate);
+}
+
+.impact-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--ink);
+  opacity: 0.35;
+}
+
+.impact-tick.is-reject {
+  background: var(--hazard);
+  opacity: 0.8;
+}
+
+.impact-bar-value {
+  font-size: 0.86rem;
+  text-align: right;
+}
+
+.impact-scale {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.impact-finding {
+  margin: 0;
+  padding: 0.8rem 0.95rem;
+  border-radius: var(--radius);
+  background: var(--ground);
+  border: 1px solid var(--line);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .impact-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .search-hit {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-hit-verdicts {
+    justify-content: flex-start;
+  }
+
+  .verdict-banner {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .verdict-banner-city {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media print {
+  .impact-panel,
+  .search-box,
+  .search-results {
+    display: none !important;
+  }
+
+  .verdict-banner {
+    border-color: #000000;
+    background: #FFFFFF;
+  }
+
+  .verdict-banner-icon {
+    background: #000000;
+  }
+}
+
+.impact-panel .batch-header {
+  flex-wrap: wrap;
+}
+
+#impact-item-label {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
