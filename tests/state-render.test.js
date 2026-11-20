@@ -263,6 +263,15 @@ test("share hash: encode then decode round-trips every field", () => {
   assert.equal(issues.length, 0);
 });
 
+test("share hash: encoder never emits a barcode its own decoder would reject", () => {
+  for (const barcode of ["abc", "12ab", "123456789012345", "<img>", "0000000000000000000001"]) {
+    const hash = encodeShareHash({ cityMode: "houston-tx", barcode });
+    assert.equal(/(^|[#&])b=/.test(hash), false, `encodeShareHash must not emit b= for ${barcode}`);
+  }
+  assert.match(encodeShareHash({ barcode: "041220576463" }), /(^|[#&])b=041220576463/, "digits still encode");
+  assert.match(encodeShareHash({ barcode: "0" }), /(^|[#&])b=0/, "single zero digit encodes");
+});
+
 test("share hash: hostile or malformed input is dropped with a reason and never throws", () => {
   const cases = [
     "#c=paris&b=12ab&m=%3Cimg%3E&r=0&k=soggy",

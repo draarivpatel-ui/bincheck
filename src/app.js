@@ -157,7 +157,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     const result = searchItems(searchQuery);
     els.searchResults.innerHTML = renderSearchResults(result);
     els.searchCount.textContent = result.query
-      ? `${result.total} match${result.total === 1 ? "" : "es"}`
+      ? `${result.total} ${result.partial ? "close " : ""}match${result.total === 1 ? "" : "es"}`
       : `${SEARCHABLE_COUNT} items`;
   }
 
@@ -324,8 +324,15 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       await els.cameraVideo.play();
       if (request.cancelled || destroyed || cameraStream !== stream) return;
       els.cameraWrap.classList.remove("hidden");
+      let detector = null;
       if ("BarcodeDetector" in win) {
-        const detector = new win.BarcodeDetector({ formats: ["upc_a", "ean_13", "ean_8"] });
+        try {
+          detector = new win.BarcodeDetector({ formats: ["upc_a", "ean_13", "ean_8"] });
+        } catch {
+          detector = null;
+        }
+      }
+      if (detector) {
         let detecting = false;
         cameraTimer = win.setInterval(async () => {
           if (destroyed || cameraStream !== stream || detecting) return;
@@ -724,6 +731,12 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   const hydrated = decodeShareHash(win.location && win.location.hash);
   if (Object.keys(hydrated.patch).length > 0) {
     state = reduce(state, { type: "HYDRATE", patch: hydrated.patch });
+  }
+  if (hydrated.issues.length > 0) {
+    state = reduce(state, {
+      type: "SET_NOTICE",
+      text: `Share link: ${hydrated.issues.length} unreadable value${hydrated.issues.length === 1 ? " was" : "s were"} ignored.`
+    });
   }
 
   doc.addEventListener("click", handleClick);

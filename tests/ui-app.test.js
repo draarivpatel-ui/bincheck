@@ -181,29 +181,40 @@ test("ui: stop and destroy during video playback cannot resume a cancelled scann
   }
 });
 
-test("ui: detector construction and playback failures stop and detach the acquired stream", async () => {
-  for (const failure of ["detector", "playback"]) {
-    const { dom, el, app } = boot();
-    const fixture = streamFixture();
-    dom.window.navigator.mediaDevices = { getUserMedia: async () => fixture.stream };
-    if (failure === "detector") {
-      dom.window.BarcodeDetector = class {
-        constructor() { throw new Error("unsupported scanner formats"); }
-      };
-    } else {
-      installDetector(dom);
-      el("camera-video").play = async () => { throw new Error("playback unavailable"); };
-    }
-    dom.click(button(dom, "data-action", "camera-start"));
-    await settleCamera();
-    assert.equal(fixture.track.stops, 1);
-    assert.equal(dom.intervals.size, 0);
-    assert.equal(el("camera-video").srcObject, null);
-    assert.equal(el("camera-preview-wrap").classList.contains("hidden"), true);
-    assert.match(el("barcode-status").className, /invalid/);
-    app.destroy();
-    assert.equal(fixture.track.stops, 1);
-  }
+test("ui: playback failure stops and detaches the acquired stream", async () => {
+  const { dom, el, app } = boot();
+  const fixture = streamFixture();
+  dom.window.navigator.mediaDevices = { getUserMedia: async () => fixture.stream };
+  installDetector(dom);
+  el("camera-video").play = async () => { throw new Error("playback unavailable"); };
+  dom.click(button(dom, "data-action", "camera-start"));
+  await settleCamera();
+  assert.equal(fixture.track.stops, 1);
+  assert.equal(dom.intervals.size, 0);
+  assert.equal(el("camera-video").srcObject, null);
+  assert.equal(el("camera-preview-wrap").classList.contains("hidden"), true);
+  assert.match(el("barcode-status").className, /invalid/);
+  app.destroy();
+  assert.equal(fixture.track.stops, 1);
+});
+
+test("ui: a throwing BarcodeDetector keeps the preview and reports manual entry instead", async () => {
+  const { dom, el, app } = boot();
+  const fixture = streamFixture();
+  dom.window.navigator.mediaDevices = { getUserMedia: async () => fixture.stream };
+  dom.window.BarcodeDetector = class {
+    constructor() { throw new Error("unsupported scanner formats"); }
+  };
+  dom.click(button(dom, "data-action", "camera-start"));
+  await settleCamera();
+  assert.equal(fixture.track.stops, 0, "preview stays live; only the scanner degrades");
+  assert.equal(dom.intervals.size, 0, "no detection interval is armed");
+  assert.equal(el("camera-video").srcObject, fixture.stream);
+  assert.equal(el("camera-preview-wrap").classList.contains("hidden"), false);
+  assert.match(el("barcode-status").className, /valid/);
+  assert.match(el("barcode-status").textContent, /cannot read barcodes automatically/);
+  app.destroy();
+  assert.equal(fixture.track.stops, 1, "destroy still releases the stream");
 });
 
 test("ui: stop, destroy and page hide deterministically clear scanner interval ID zero", async () => {

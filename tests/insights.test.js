@@ -43,7 +43,7 @@ test("verdicts: every stream the engine can return maps to a named verdict and i
 });
 
 test("search: matches every term, ranks title hits first, and carries both cities' engine verdicts", () => {
-  assert.deepEqual(searchItems("   "), { query: "", total: 0, results: [] });
+  assert.deepEqual(searchItems("   "), { query: "", total: 0, results: [], partial: false });
   assert.equal(searchItems("zzqx nothing").total, 0);
   const topo = searchItems("topo chico");
   assert.equal(topo.results[0].kind, "barcode");
@@ -56,10 +56,63 @@ test("search: matches every term, ranks title hits first, and carries both citie
     assert.equal(r.sugarLand.stream, sl.stream, r.title);
     assert.equal(r.citiesDiffer, r.sugarLand.stream !== r.houston.stream);
   }
-  assert.ok(searchItems("a").results.length <= 8);
-  assert.ok(searchItems("a").total > 8);
+  const bottles = searchItems("bottle");
+  assert.ok(bottles.results.length <= 8);
+  assert.ok(bottles.total > 8 || bottles.results.length === bottles.total, "cap respected");
   const foam = searchItems("foam");
   assert.ok(foam.results.some((r) => r.citiesDiffer), "#6 foam differs between the cities");
+});
+
+test("search Wave 2: natural compound queries resolve through aliases, stopwords and resin stamps", () => {
+  const cases = [
+    ["rinsed #5 yogurt tub with foil lid", "resin-5-pp"],
+    ["paper coffee cup with plastic lid", "resin-7-other"],
+    ["broken drinking glass", "broken-glass-ceramic"],
+    ["crushed aluminum can", "aluminum-steel-can"],
+    ["aerosol can empty", "aluminum-steel-can"],
+    ["black plastic #5 takeout tray", "resin-5-pp"],
+    ["solo cup", "resin-6-ps-foam"],
+    ["tupperware", "resin-5-pp"],
+    ["cereal box", "clean-cardboard-paper"],
+    ["newspaper", "clean-cardboard-paper"],
+    ["tv", "electronics-ewaste"],
+    ["charger", "electronics-ewaste"],
+    ["christmas lights", "electronics-ewaste"],
+    ["greasy cardboard pizza box", "greasy-pizza-box"],
+    ["batery", "lithium-household-battery"],
+    ["number 5 plastic", "resin-5-pp"]
+  ];
+  for (const [query, expected] of cases) {
+    const r = searchItems(query);
+    assert.ok(
+      r.results.some((hit) => hit.value === expected),
+      `"${query}" -> ${expected}; got ${r.results.map((hit) => hit.value).join(", ") || "nothing"}`
+    );
+  }
+  const ambiguous = searchItems("shredded paper in plastic bag");
+  assert.equal(ambiguous.partial, true, "paper and film split the terms");
+  for (const expected of ["clean-cardboard-paper", "resin-4-ldpe-film"]) {
+    assert.ok(ambiguous.results.some((hit) => hit.value === expected), `shredded query -> ${expected}`);
+  }
+});
+
+test("search Wave 2: plurals, diacritics, UPC digits and partial fallback all reach results", () => {
+  assert.ok(searchItems("bottles").results.length >= 3, "plural bottle");
+  const accent = searchItems("Tópo Chico");
+  assert.ok(accent.results.some((r) => /Topo Chico/.test(r.title)), "diacritics fold");
+  const upc = searchItems("041220948321");
+  assert.equal(upc.results[0].kind, "barcode");
+  assert.equal(upc.results[0].value, "041220948321");
+  assert.equal(upc.partial, false, "a UPC is a full match");
+  const cross = searchItems("yogurt battery");
+  assert.equal(cross.partial, true, "terms split across two items flag closest matches");
+  assert.ok(cross.results.length >= 2);
+  assert.match(renderSearchResults(cross), /Closest matches/);
+  const dead = searchItems("unobtainium frobnicate");
+  assert.equal(dead.results.length, 0);
+  assert.match(renderSearchResults(dead), /material category below/);
+  const stopOnly = searchItems("the and of");
+  assert.equal(stopOnly.total, 0, "stopwords alone match nothing");
 });
 
 test("search: results render escaped, and a hostile query is shown as text", () => {

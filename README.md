@@ -82,7 +82,7 @@ bincheck/
 |-- scripts/
 |   |-- run-benchmark.js          Benchmark CLI
 |   `-- verify-city-sources.js    Offline and live source verifier
-`-- tests/                        212 tests in eight files, plus a stand-in DOM
+`-- tests/                        216 tests in eight files, plus a stand-in DOM
 ```
 
 ## Running the tests
@@ -90,7 +90,7 @@ bincheck/
 Requires Node.js 18 or newer. There is nothing to install.
 
 ```bash
-npm test                    # node --test tests/  (212 tests)
+npm test                    # node --test tests/  (216 tests)
 npm run benchmark           # text report with latency
 node scripts/run-benchmark.js --json   # deterministic JSON report
 npm run verify:sources      # check the rules snapshot offline

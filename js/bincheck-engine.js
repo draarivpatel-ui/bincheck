@@ -391,7 +391,7 @@ export const MATERIAL_CATEGORIES = {
       stream: "SPLIT_DISPOSAL",
       badgeLabel: "Ball Up to 2 Inches if Clean / Trash if Greasy",
       prepSteps: [
-        "If foil has baked-on cheese, meat grease, orlasagna sauce, place it in the trash cart.",
+        "If foil has baked-on cheese, meat grease, or lasagna sauce, place it in the trash cart.",
         "If aluminum foil is wiped clean, crumple sheets into a tight 3D ball at least 2 inches in diameter so eddy-current separators can eject it.",
         "Place clean foil balls or rinsed foil roasting pans in the Sugar Land recycling cart."
       ],
@@ -1081,17 +1081,20 @@ export function buildRuleCitations(cityId, category) {
   const resin = Number.isInteger(category.resinCode) ? category.resinCode : null;
   if (resin !== null) {
     if (Array.isArray(rules.acceptedResins) && rules.acceptedResins.includes(resin)) {
-      cite("curbsideCartRules.acceptedResins", `Curbside-accepted resin codes: ${resinCodeList(rules.acceptedResins)}. #${resin} is in this list.`, "verbatim");
+      cite("curbsideCartRules.acceptedResins", `acceptedResins = [${resinCodeList(rules.acceptedResins)}]. #${resin} is in this list.`, "interpretation");
     } else if (Array.isArray(rules.rejectedResins) && rules.rejectedResins.includes(resin)) {
-      cite("curbsideCartRules.rejectedResins", `Curbside-rejected resin codes: ${resinCodeList(rules.rejectedResins)}. #${resin} is in this list.`, "verbatim");
+      cite("curbsideCartRules.rejectedResins", `rejectedResins = [${resinCodeList(rules.rejectedResins)}]. #${resin} is in this list.`, "interpretation");
     } else if (Array.isArray(rules.conditionalResins) && rules.conditionalResins.includes(resin)) {
-      cite("curbsideCartRules.conditionalResins", `Conditional resin codes: ${resinCodeList(rules.conditionalResins)}. #${resin} is not unconditionally cart-eligible, so it is not routed to the cart.`, "interpretation");
+      cite("curbsideCartRules.conditionalResins", `conditionalResins = [${resinCodeList(rules.conditionalResins)}]. #${resin} is not unconditionally cart-eligible, so it is not routed to the cart.`, "interpretation");
     }
   }
 
   const id = category.id;
-  if (id === "resin-4-ldpe-film" && rules.bagNote) {
-    cite("curbsideCartRules.bagNote", `plasticBagsAllowedInCart = ${rules.plasticBagsAllowedInCart}. ${rules.bagNote}`, "verbatim");
+  if (id === "resin-4-ldpe-film") {
+    cite("curbsideCartRules.plasticBagsAllowedInCart", `plasticBagsAllowedInCart = ${rules.plasticBagsAllowedInCart}.`, "interpretation");
+    if (rules.bagNote) {
+      cite("curbsideCartRules.bagNote", rules.bagNote, "verbatim");
+    }
   }
   if (id === "glass-jar-bottle") {
     cite("curbsideCartRules.acceptsCleanGlassCurbside", `acceptsCleanGlassCurbside = ${rules.acceptsCleanGlassCurbside}.`, "interpretation");

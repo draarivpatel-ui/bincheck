@@ -49,12 +49,12 @@ test("citations: every material category produces at least one citation in both 
   }
 });
 
-test("citations: an accepted resin cites acceptedResins verbatim in both cities", () => {
+test("citations: resin-list cites are interpretation, since the snapshot stores arrays not prose", () => {
   for (const city of CITY_IDS) {
     const ev = evaluateItemDisposal({ materialId: "resin-1-pet", city });
     const cite = ev.ruleCitations.find((c) => c.ruleId.endsWith("acceptedResins"));
     assert.ok(cite, `${city}: no acceptedResins citation`);
-    assert.equal(cite.kind, "verbatim");
+    assert.equal(cite.kind, "interpretation", "acceptedResins is a JSON array; the sentence is generated");
     assert.match(cite.quote, /#1/);
   }
 });
@@ -62,7 +62,7 @@ test("citations: an accepted resin cites acceptedResins verbatim in both cities"
 test("citations: #6 foam cites rejected resins in both cities plus the Fort Bend drop-off list in Sugar Land", () => {
   const sl = evaluateItemDisposal({ materialId: "resin-6-ps-foam", city: "sugar-land-tx" });
   const slRejected = sl.ruleCitations.find((c) => c.ruleId.endsWith("rejectedResins"));
-  assert.ok(slRejected && slRejected.kind === "verbatim");
+  assert.ok(slRejected && slRejected.kind === "interpretation");
   const slDropOff = sl.ruleCitations.find((c) => c.ruleId.includes("dropOffCenter.accepts"));
   assert.ok(slDropOff, "Sugar Land foam should cite dropOffCenter.accepts");
   assert.equal(slDropOff.kind, "verbatim");
@@ -82,13 +82,16 @@ test("citations: #3 PVC is conditional in Sugar Land but rejected in Houston", (
   assert.ok(ho.ruleCitations.some((c) => c.ruleId.endsWith("rejectedResins")));
 });
 
-test("citations: plastic film cites the city bag rule verbatim in both cities", () => {
+test("citations: plastic film cites the verbatim bag note plus the boolean flag as interpretation", () => {
   for (const city of CITY_IDS) {
     const ev = evaluateItemDisposal({ materialId: "resin-4-ldpe-film", city });
     const bag = ev.ruleCitations.find((c) => c.ruleId.endsWith("bagNote"));
     assert.ok(bag, `${city}: no bagNote citation`);
     assert.equal(bag.kind, "verbatim");
-    assert.match(bag.quote, /plasticBagsAllowedInCart = false/);
+    const flag = ev.ruleCitations.find((c) => c.ruleId.endsWith("plasticBagsAllowedInCart"));
+    assert.ok(flag, `${city}: no plasticBagsAllowedInCart citation`);
+    assert.equal(flag.kind, "interpretation");
+    assert.match(flag.quote, /plasticBagsAllowedInCart = false/);
   }
 });
 
@@ -148,11 +151,12 @@ test("citations: liquid-full bottles and unlisted materials carry an honest infe
 /* ---------------- Rule trace rendering ---------------- */
 
 test("render: single evaluation shows the municipal rule trace with escaped quotes", () => {
-  const ev = evaluateItemDisposal({ materialId: "resin-6-ps-foam", city: "houston-tx" });
+  const ev = evaluateItemDisposal({ materialId: "resin-6-ps-foam", city: "sugar-land-tx" });
   const htmlOut = renderSingleEvaluation(ev, assessEvidence({ materialId: "resin-6-ps-foam" }));
   assert.match(htmlOut, /Municipal rule trace/);
   assert.match(htmlOut, /curbsideCartRules\.rejectedResins/);
-  assert.match(htmlOut, /cite-kind-verbatim/);
+  assert.match(htmlOut, /cite-kind-interpretation/);
+  assert.match(htmlOut, /cite-kind-verbatim/, "Sugar Land foam also carries the verbatim drop-off list");
 });
 
 test("render: malicious text inside a citation is escaped", () => {
