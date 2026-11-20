@@ -6,6 +6,8 @@
  * Depository) solid waste ordinances.
  */
 
+import { MUNICIPAL_RULES_SNAPSHOT } from "../data/municipal-rules-2026.js";
+
 export const SUPPORTED_CITIES = {
   "sugar-land-tx": {
     id: "sugar-land-tx",
@@ -1026,6 +1028,116 @@ export function resolveMaterialProfile(query = {}) {
   };
 }
 
+const RULE_SNAPSHOT_SOURCE = "data/municipal-rules-2026.json";
+
+const RULE_FIELD_LABELS = {
+  acceptedResins: "accepted resin codes",
+  conditionalResins: "conditional resin codes",
+  rejectedResins: "rejected resin codes",
+  acceptsCleanGlassCurbside: "clean glass acceptance",
+  glassNote: "glass rule",
+  plasticBagsAllowedInCart: "plastic bags in cart",
+  bagNote: "plastic bag and film rule",
+  greasyPizzaBoxRule: "greasy pizza box rule",
+  greenWasteProgram: "yard waste program",
+  "dropOffCenter.accepts": "drop-off accepted items"
+};
+
+const DROP_OFF_ACCEPTS_MATCH = {
+  "lithium-household-battery": /batter/i,
+  "electronics-ewaste": /electronic|e-waste|BOPA/i,
+  "resin-6-ps-foam": /polystyrene|foam|rigid plastic/i
+};
+
+function resinCodeList(list) {
+  return list.map((code) => `#${code}`).join(", ");
+}
+
+/**
+ * Builds the municipal rule trace for an evaluation. Each citation names the
+ * exact field in the bundled rules snapshot (ruleId is the JSON path), quotes
+ * the rule text, and marks how it was applied:
+ *   verbatim       - quoted snapshot rule text in the city's own words
+ *   interpretation - a snapshot field value applied to this item
+ *   inference      - no direct snapshot field; engine material-class routing
+ */
+export function buildRuleCitations(cityId, category) {
+  const snap = MUNICIPAL_RULES_SNAPSHOT.jurisdictions[cityId];
+  if (!snap || !category) {
+    return [];
+  }
+  const rules = snap.curbsideCartRules || {};
+  const citations = [];
+  const cite = (path, quote, kind) => {
+    citations.push({
+      ruleId: `jurisdictions.${cityId}.${path}`,
+      label: `${snap.name} ${RULE_FIELD_LABELS[path] || RULE_FIELD_LABELS[path.split(".").pop()] || "curbside rules"}`,
+      quote,
+      kind,
+      source: RULE_SNAPSHOT_SOURCE
+    });
+  };
+
+  const resin = Number.isInteger(category.resinCode) ? category.resinCode : null;
+  if (resin !== null) {
+    if (Array.isArray(rules.acceptedResins) && rules.acceptedResins.includes(resin)) {
+      cite("curbsideCartRules.acceptedResins", `Curbside-accepted resin codes: ${resinCodeList(rules.acceptedResins)}. #${resin} is in this list.`, "verbatim");
+    } else if (Array.isArray(rules.rejectedResins) && rules.rejectedResins.includes(resin)) {
+      cite("curbsideCartRules.rejectedResins", `Curbside-rejected resin codes: ${resinCodeList(rules.rejectedResins)}. #${resin} is in this list.`, "verbatim");
+    } else if (Array.isArray(rules.conditionalResins) && rules.conditionalResins.includes(resin)) {
+      cite("curbsideCartRules.conditionalResins", `Conditional resin codes: ${resinCodeList(rules.conditionalResins)}. #${resin} is not unconditionally cart-eligible, so it is not routed to the cart.`, "interpretation");
+    }
+  }
+
+  const id = category.id;
+  if (id === "resin-4-ldpe-film" && rules.bagNote) {
+    cite("curbsideCartRules.bagNote", `plasticBagsAllowedInCart = ${rules.plasticBagsAllowedInCart}. ${rules.bagNote}`, "verbatim");
+  }
+  if (id === "glass-jar-bottle") {
+    cite("curbsideCartRules.acceptsCleanGlassCurbside", `acceptsCleanGlassCurbside = ${rules.acceptsCleanGlassCurbside}.`, "interpretation");
+    if (rules.glassNote) {
+      cite("curbsideCartRules.glassNote", rules.glassNote, "verbatim");
+    }
+  }
+  if (id === "broken-glass-ceramic" && rules.glassNote) {
+    const explicit = /broken|ceramic|prohibit/i.test(rules.glassNote);
+    cite("curbsideCartRules.glassNote", explicit ? rules.glassNote : `${rules.glassNote} A broken or ceramic item falls outside that clean-glass acceptance.`, explicit ? "verbatim" : "interpretation");
+  }
+  if (id === "greasy-pizza-box" && rules.greasyPizzaBoxRule) {
+    cite("curbsideCartRules.greasyPizzaBoxRule", rules.greasyPizzaBoxRule, "verbatim");
+  }
+  if (id === "soiled-cardboard-paper" && rules.greasyPizzaBoxRule) {
+    cite("curbsideCartRules.greasyPizzaBoxRule", `${rules.greasyPizzaBoxRule} Applied by analogy to non-pizza soiled fiber.`, "interpretation");
+  }
+  if (id === "yard-trimmings-brush" && rules.greenWasteProgram) {
+    cite("curbsideCartRules.greenWasteProgram", rules.greenWasteProgram, "verbatim");
+  }
+
+  const matcher = DROP_OFF_ACCEPTS_MATCH[id];
+  const accepts = snap.dropOffCenter && Array.isArray(snap.dropOffCenter.accepts) ? snap.dropOffCenter.accepts : [];
+  const acceptedEntry = matcher ? accepts.find((entry) => matcher.test(entry)) : null;
+  if (acceptedEntry) {
+    cite("dropOffCenter.accepts", `${snap.dropOffCenter.name}: "${acceptedEntry}"`, "verbatim");
+  }
+
+  if (id === "liquid-full-bottle") {
+    cite(
+      "curbsideCartRules",
+      "No snapshot field names a still-full container. The resin itself is cart-eligible; the liquid fill fails sorting physics (optical air-jets cannot eject heavy bottles), so it must be emptied first.",
+      "inference"
+    );
+  }
+
+  if (citations.length === 0) {
+    cite(
+      "curbsideCartRules",
+      "The bundled snapshot does not name this item; the stream follows general single-stream acceptance for its material class.",
+      "inference"
+    );
+  }
+  return citations;
+}
+
 /**
  * Evaluates disposal instructions, MRF failure mechanics, and contamination risk
  * for a given item in either "sugar-land-tx" or "houston-tx".
@@ -1075,6 +1187,7 @@ export function evaluateItemDisposal(query = {}) {
       retailBagDropOff: cityMeta.retailBagDropOff
     },
     cityDivergenceNote: category.divergenceSummary,
+    ruleCitations: buildRuleCitations(cityId, category),
     barcodeValidation: barcodeResult ? barcodeResult.validation : null,
     matchedProduct: resolvedProduct
   };

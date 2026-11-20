@@ -264,6 +264,37 @@ function renderSourceLine(ev) {
   return `<div class="dropoff-row source-row"><strong>Official source:</strong> <a class="inline-link" href="${escapeHtml(ev.officialSourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ev.cityName)}<span class="sr-only"> (opens in a new tab)</span></a>. Rules verified ${escapeHtml(RULES_SNAPSHOT_META.lastVerifiedDate)}.</div>`;
 }
 
+const CITE_KIND_LABELS = {
+  verbatim: "City rule text",
+  interpretation: "Applied rule",
+  inference: "Engine estimate"
+};
+
+/** Municipal rule trace: the exact snapshot fields behind the verdict, quoted. */
+export function renderRuleCitations(citations) {
+  if (!Array.isArray(citations) || citations.length === 0) {
+    return "";
+  }
+  const items = citations
+    .map(
+      (entry) => `
+      <li class="rule-cite">
+        <div class="rule-cite-head">
+          <code class="rule-id">${escapeHtml(entry.ruleId)}</code>
+          <span class="cite-kind cite-kind-${escapeHtml(entry.kind)}">${escapeHtml(CITE_KIND_LABELS[entry.kind] || entry.kind)}</span>
+        </div>
+        <p class="rule-quote">${escapeHtml(entry.quote)}</p>
+      </li>`
+    )
+    .join("");
+  const source = citations[0] && citations[0].source ? citations[0].source : "data/municipal-rules-2026.json";
+  return `<div class="rule-trace">
+    <h4>Municipal rule trace</h4>
+    <ul class="rule-cite-list">${items}</ul>
+    <p class="rule-source tabular">Fields quoted from ${escapeHtml(source)}, snapshot verified ${escapeHtml(RULES_SNAPSHOT_META.lastVerifiedDate)}.</p>
+  </div>`;
+}
+
 export function renderSingleEvaluation(ev, assessment) {
   const stepsHtml = ev.prepSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
   const resinBadge = ev.resinInfo
@@ -279,6 +310,7 @@ export function renderSingleEvaluation(ev, assessment) {
     </div>
     ${renderVerdictBanner(ev)}
     ${renderContaminationGauge(ev.contaminationRiskScore, ev.contaminationTier, ev.mrfFailureMode)}
+    ${renderRuleCitations(ev.ruleCitations)}
     ${renderEvidencePanel(assessment)}
     <div class="eval-section">
       <h4>Required household preparation steps</h4>
@@ -303,10 +335,32 @@ function renderCompareColumn(ev, tag) {
       </div>
       ${renderVerdictBanner(ev)}
       <p class="compare-risk-line tabular"><strong>Contamination risk:</strong> ${ev.contaminationRiskScore}/100 (${escapeHtml(TIER_LABELS[ev.contaminationTier])})</p>
+      ${renderRuleCitations(ev.ruleCitations)}
       <ol class="prep-list">${ev.prepSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
       <p class="compare-facility-line tabular"><strong>Facility:</strong> ${escapeHtml(ev.dropOffFacility.name)}, ${escapeHtml(ev.dropOffFacility.address)}</p>
     </div>
   `;
+}
+
+/** Dramatizes a true municipal divergence: the same item, two different verdicts. */
+function renderVerdictFlip(sl, ho) {
+  return `
+    <div class="verdict-flip" role="note" aria-label="The two cities give different verdicts for this item">
+      <p class="verdict-flip-title">Same item. Different verdict.</p>
+      <div class="verdict-flip-cols">
+        <div class="flip-city">
+          <span class="flip-city-name">Sugar Land</span>
+          ${renderVerdictChip(sl.stream)}
+          <span class="flip-verdict-label">${escapeHtml(sl.badgeLabel)}</span>
+        </div>
+        <span class="flip-arrow" aria-hidden="true">&#8594;</span>
+        <div class="flip-city">
+          <span class="flip-city-name">Houston</span>
+          ${renderVerdictChip(ho.stream)}
+          <span class="flip-verdict-label">${escapeHtml(ho.badgeLabel)}</span>
+        </div>
+      </div>
+    </div>`;
 }
 
 export function renderComparisonView(comp, assessment) {
@@ -323,6 +377,7 @@ export function renderComparisonView(comp, assessment) {
       </div>
       ${renderStreamBadge(badgeStream, badgeText)}
     </div>
+    ${aligned ? "" : renderVerdictFlip(sl, ho)}
     <div class="risk-meter-box">
       <p class="mrf-note" style="margin: 0"><strong>Key ordinance comparison:</strong> ${escapeHtml(comp.divergenceSummary)}</p>
       <p class="mrf-note"><strong>Sorting facility physics:</strong> ${escapeHtml(sl.mrfFailureMode)}</p>
@@ -458,6 +513,7 @@ export function renderBatchReport(result) {
         <div class="city-summary-card">
           <div class="city-summary-head"><h4>${escapeHtml(city.cityName)}</h4><span class="stream-badge stream-${statusClass}">${escapeHtml(LOAD_STATUS_LABELS[status])}</span></div>
           <p class="tabular city-summary-meta">Average risk ${city.averageRiskScore}/100, maximum ${city.maxRiskScore}/100</p>
+          <p class="diversion-line"><strong class="tabular">${city.cartEligible} of ${city.itemCount}</strong> evaluated items are cart-eligible (<strong class="tabular">${city.cartEligiblePct}%</strong>)${city.notCartEligible > 0 ? `; <strong class="tabular">${city.notCartEligible}</strong> must stay out of the cart` : ""}</p>
           ${renderStreamBar(city.streamCounts, city.itemCount, `${city.cityName} stream mix`)}
         </div>`;
     })

@@ -9,6 +9,7 @@ export {
   getContaminationTier,
   resolveMaterialProfile,
   evaluateItemDisposal,
+  buildRuleCitations,
   compareJurisdictions,
   scoreCartBatch
 } from "../js/bincheck-engine.js";

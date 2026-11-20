@@ -67,6 +67,13 @@ const DEMO_SCENARIOS = {
 
 export { DEMO_SCENARIOS };
 
+/** One-click guided demos wired to the three walkthrough cards in index.html. */
+export const GUIDED_DEMOS = {
+  "city-flip": { scenario: "styrofoam", scrollTarget: "result-panel-card" },
+  "contamination-trap": { scenario: "lithium-battery", impactClean: 30, impactCount: 1, scrollTarget: "impact-heading" },
+  "csv-audit": { runCsv: true, scrollTarget: "csv-results" }
+};
+
 const NOTICE_MS = 6000;
 
 function defaultDownload(doc, win, filename, mime, text) {
@@ -486,6 +493,31 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         if (scenario) {
           dispatch({ type: "APPLY_DEMO", scenario });
           sweep();
+        }
+        break;
+      }
+      case "guided-demo": {
+        const guided = GUIDED_DEMOS[actionEl.getAttribute("data-guided")];
+        if (!guided) break;
+        if (Number.isInteger(guided.impactClean)) {
+          impactClean = guided.impactClean;
+          els.impactClean.value = String(impactClean);
+        }
+        if (Number.isInteger(guided.impactCount)) {
+          impactCount = guided.impactCount;
+          els.impactCount.value = String(impactCount);
+        }
+        if (guided.scenario && DEMO_SCENARIOS[guided.scenario]) {
+          dispatch({ type: "APPLY_DEMO", scenario: DEMO_SCENARIOS[guided.scenario] });
+          sweep();
+        }
+        if (guided.runCsv) {
+          dispatch({ type: "LOAD_SAMPLE_CSV" });
+          dispatch({ type: "RUN_BATCH" });
+        }
+        const target = guided.scrollTarget ? doc.getElementById(guided.scrollTarget) : null;
+        if (target && typeof target.scrollIntoView === "function") {
+          target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
         }
         break;
       }

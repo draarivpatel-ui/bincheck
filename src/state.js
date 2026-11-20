@@ -209,7 +209,7 @@ export function reduce(state, action) {
       return { ...state, csvText: String(action.text ?? "") };
     }
     case "LOAD_SAMPLE_CSV": {
-      return { ...state, csvText: SAMPLE_BATCH_CSV, batchResult: null, notice: "Sample CSV loaded. Choose Run inspection." };
+      return { ...state, csvText: SAMPLE_BATCH_CSV, batchResult: null, notice: "Synthetic sample CSV loaded. Choose Run inspection." };
     }
     case "RUN_BATCH": {
       const result = runBatchFromCsv(state.csvText);
