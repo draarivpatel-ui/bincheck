@@ -154,6 +154,27 @@
       </div>
     </section>
 
+    <section class="guided-rail card no-print" aria-labelledby="guided-heading">
+      <h2 id="guided-heading">Try it in three clicks</h2>
+      <div class="guided-grid">
+        <button type="button" class="guided-card" data-action="guided-demo" data-guided="city-flip">
+          <span class="guided-step tabular">1</span>
+          <span class="guided-name">Watch a city line flip the verdict</span>
+          <span class="guided-desc">The same #6 foam cup goes to a county drop-off in Riverside but the trash cart in Houston.</span>
+        </button>
+        <button type="button" class="guided-card" data-action="guided-demo" data-guided="contamination-trap">
+          <span class="guided-step tabular">2</span>
+          <span class="guided-name">Load a contamination trap</span>
+          <span class="guided-desc">One lithium battery inside 30 clean bottles shows why the average hides the hazard.</span>
+        </button>
+        <button type="button" class="guided-card" data-action="guided-demo" data-guided="csv-audit">
+          <span class="guided-step tabular">3</span>
+          <span class="guided-name">Audit a synthetic household CSV</span>
+          <span class="guided-desc">Nine illustrative rows scored per city, with the share that is cart-eligible.</span>
+        </button>
+      </div>
+    </section>
+
     <section class="demo-bar card no-print" aria-labelledby="quick-demo-heading">
       <div class="demo-header">
         <h2 id="quick-demo-heading">Find any item</h2>
@@ -411,10 +432,10 @@
         <div class="csv-input-col">
           <label for="csv-input" class="field-label">Paste CSV text</label>
           <textarea id="csv-input" class="csv-textarea tabular" rows="9" spellcheck="false" autocomplete="off" aria-describedby="csv-help" placeholder="label,barcode,material,resin,condition"></textarea>
-          <p id="csv-help" class="field-help">Columns: label, barcode, material, resin, condition. A header row is optional; without one, columns are read as barcode, material, resin, condition, label. Material uses ids like resin-1-pet or glass-jar-bottle. Lines starting with # are ignored. Rows BinCheck cannot identify are listed as errors and never guessed.</p>
+          <p id="csv-help" class="field-help">Columns: label, barcode, material, resin, condition. A header row is optional; without one, columns are read as barcode, material, resin, condition, label. Material uses ids like resin-1-pet or glass-jar-bottle. Lines starting with # are ignored. Rows BinCheck cannot identify are listed as errors and never guessed. The bundled sample is an illustrative synthetic dataset, not real household records.</p>
           <div class="csv-actions">
             <button type="button" id="csv-run-btn" class="primary-btn" data-action="run-batch">Run inspection</button>
-            <button type="button" id="csv-sample-btn" class="secondary-btn" data-action="load-sample">Load sample</button>
+            <button type="button" id="csv-sample-btn" class="secondary-btn" data-action="load-sample">Load synthetic sample</button>
             <button type="button" id="csv-clear-btn" class="text-btn" data-action="clear-batch">Clear</button>
           </div>
           <label for="csv-file-input" class="field-label file-label">Or choose a CSV file</label>

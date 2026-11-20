@@ -211,6 +211,15 @@ export function parseBatchCsv(text) {
 
   const rows = records.map((record) => {
     const row = { line: record.line, label: "", barcode: "", material: "", resin: "", condition: "" };
+    if (record.cells.length > columns.length) {
+      errors.push(
+        csvError(
+          record.line,
+          "EXTRA_CELLS",
+          `Row has ${record.cells.length - columns.length} extra cell(s) beyond the ${columns.length} known columns; extra data was ignored.`
+        )
+      );
+    }
     record.cells.forEach((cell, index) => {
       const column = columns[index];
       if (column) {
@@ -234,6 +243,7 @@ function summarizeCity(cityId, evaluatedRows) {
   for (const evaluation of summary.evaluations) {
     streamCounts[evaluation.stream] = (streamCounts[evaluation.stream] || 0) + 1;
   }
+  const cartEligible = summary.evaluations.filter((ev) => ev.stream === "RECYCLE_CART").length;
   return {
     city: cityId,
     cityName: SUPPORTED_CITIES[cityId].shortName,
@@ -242,7 +252,10 @@ function summarizeCity(cityId, evaluatedRows) {
     maxRiskScore: summary.maxRiskScore,
     loadStatus: summary.loadStatus,
     streamCounts: Object.fromEntries(Object.entries(streamCounts).sort(([a], [b]) => (a < b ? -1 : 1))),
-    hazards: summary.criticalHazards
+    hazards: summary.criticalHazards,
+    cartEligible,
+    cartEligiblePct: summary.itemCount === 0 ? 0 : Math.round((cartEligible / summary.itemCount) * 100),
+    notCartEligible: summary.itemCount - cartEligible
   };
 }
 
