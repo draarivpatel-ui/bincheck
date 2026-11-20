@@ -100,10 +100,13 @@ export function renderVerdictChip(stream, prefix = "") {
 export function renderSearchResults(result) {
   if (!result.query) return "";
   if (result.results.length === 0) {
-    return `<p class="search-empty">No catalog item or material matches "${escapeHtml(result.query)}". Try a material word such as glass, foam or battery.</p>`;
+    return `<p class="search-empty">No catalog item or material matches "${escapeHtml(result.query)}". Pick the closest material category below, or try words like glass, pizza, battery or foam.</p>`;
   }
+  const partialNote = result.partial
+    ? `<p class="search-more tabular">No item matches every word. Closest matches:</p>`
+    : "";
   const more = result.total > result.results.length ? `<p class="search-more tabular">Showing ${result.results.length} of ${result.total} matches.</p>` : "";
-  return `<ul class="search-list" role="list">${result.results
+  return `${partialNote}<ul class="search-list" role="list">${result.results
     .map(
       (r, i) => `
       <li>

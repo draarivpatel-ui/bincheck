@@ -254,7 +254,11 @@ export function encodeShareHash(state = {}) {
   if (CITY_MODES.includes(state.cityMode)) {
     add("c", state.cityMode);
   }
-  add("b", String(state.barcode ?? "").replace(/[\s-]/g, ""));
+  const barcodeDigits = String(state.barcode ?? "").replace(/[\s-]/g, "");
+  // Decoder accepts only digit barcodes up to 14 chars; never emit one it would reject.
+  if (/^\d{1,14}$/.test(barcodeDigits)) {
+    add("b", barcodeDigits);
+  }
   if (normalizeMaterialToken(state.materialId)) {
     add("m", state.materialId);
   }
