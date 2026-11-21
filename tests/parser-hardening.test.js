@@ -675,6 +675,50 @@ test("batch: an extra unrecognized column never downgrades a named header into d
   }
 });
 
+test("batch: a sparse header that names the condition column after blank cells is a header", () => {
+  // "clean" in the fourth cell is positional evidence only while no real
+  // column layout is declared. Once the row names condition (or its "state"
+  // alias) past that slot, the word is an unnamed header cell and the data
+  // row's condition value lands in the named column instead of the label.
+  const repro = "barcode,,,clean,condition\n041220576463,,,,liquid-full\n";
+  const parsed = parseBatchCsv(repro);
+  assert.equal(parsed.hasHeader, true);
+  assert.equal(parsed.rows.length, 1, "only the data row is evaluated");
+  assert.equal(parsed.rows[0].barcode, "041220576463");
+  assert.equal(parsed.rows[0].condition, "liquid-full");
+  assert.ok(parsed.errors.some((entry) => entry.code === "UNKNOWN_COLUMN"), "the unnamed clean slot warns");
+
+  const result = runBatchFromCsv(repro);
+  assert.equal(result.totals.rows, 1);
+  assert.equal(result.rows[0].input.barcode, "041220576463");
+  assert.equal(result.rows[0].input.condition, "liquid-full");
+  assert.equal(result.rows[0].cities["Riverside-tx"].stream, "SPLIT_DISPOSAL");
+  assert.equal(result.rows[0].cities["houston-tx"].stream, "SPLIT_DISPOSAL");
+
+  // Wider blank gaps and the state alias reach the same verdict.
+  for (const text of [
+    "barcode,,,,condition\n041220576463,,,,liquid-full\n",
+    "barcode,,,clean,,,condition\n041220576463,,,,,,liquid-full\n",
+    "barcode,,,clean,state\n041220576463,,,,liquid-full\n"
+  ]) {
+    const run = runBatchFromCsv(text);
+    assert.equal(run.parse.hasHeader, true, JSON.stringify(text));
+    assert.equal(run.totals.rows, 1, JSON.stringify(text));
+    assert.equal(run.rows[0].input.condition, "liquid-full", JSON.stringify(text));
+    assert.equal(run.rows[0].cities["Riverside-tx"].stream, "SPLIT_DISPOSAL", JSON.stringify(text));
+    assert.equal(run.rows[0].cities["houston-tx"].stream, "SPLIT_DISPOSAL", JSON.stringify(text));
+  }
+
+  // Without a named column after the sparse condition slot the same shape
+  // stays headerless data: nothing declares a condition column, so the
+  // positional reading is the only one that keeps later conditions aligned.
+  const sparse = parseBatchCsv("barcode,,,clean\n041220576463,,,clean,bottle\n");
+  assert.equal(sparse.hasHeader, false);
+  assert.equal(sparse.rows.length, 2);
+  assert.equal(sparse.rows[1].condition, "clean");
+  assert.equal(sparse.rows[1].label, "bottle");
+});
+
 test("batch: a malformed first record fails closed instead of guessing positional columns", () => {
   const text = '"material"junk,label\nresin-6-ps-foam,resin-1-pet\n';
   const parsed = parseBatchCsv(text);

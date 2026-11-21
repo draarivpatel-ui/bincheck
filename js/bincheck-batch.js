@@ -682,7 +682,14 @@ export function parseBatchCsv(text) {
     // header words - and reading them as headers would silently drop
     // every later row's condition cell into unnamed columns.
     const sparseEmptyCell = (cell) => SPARSE_EMPTY_TOKENS.has(String(cell ?? "").trim().toLowerCase());
-    const hasConditionData = VALID_CONDITIONS.includes(String(records[0].cells[3] ?? "").trim().toLowerCase())
+    // A condition column named after the sparse fourth cell means the row
+    // declares its own layout: the condition word in that slot is an
+    // unnamed header cell and real condition values land in the named
+    // column, so "barcode,,,clean,condition" is a sparse header, not
+    // headerless data whose label happens to read "condition".
+    const conditionNamedAfterSlot = headerColumns.slice(4).includes("condition");
+    const hasConditionData = !conditionNamedAfterSlot
+      && VALID_CONDITIONS.includes(String(records[0].cells[3] ?? "").trim().toLowerCase())
       && sparseEmptyCell(records[0].cells[1])
       && sparseEmptyCell(records[0].cells[2]);
     // Data evidence sitting among the names (before the last one) can
