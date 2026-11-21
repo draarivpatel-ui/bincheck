@@ -1,6 +1,7 @@
 import { VERIFIED_BARCODE_CATALOG, MATERIAL_CATEGORIES, SUPPORTED_CITIES } from "./bincheck-engine.js";
 import { decodeShareHash } from "../js/bincheck-validate.js";
 import { BATCH_LIMITS, batchResultToCsv, batchResultToJson } from "../js/bincheck-batch.js";
+import { buildInspectionReport, inspectionReportToCsv, inspectionReportToJson } from "../js/bincheck-report.js";
 import { runBenchmark, benchmarkToJson } from "../js/bincheck-benchmark.js";
 import { createInitialState, reduce, selectViewModel, resolveShortcut } from "./state.js";
 import {
@@ -436,6 +437,15 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     }
   }
 
+  function exportItemReport(kind) {
+    const report = buildInspectionReport(selectViewModel(state).query);
+    if (kind === "csv") {
+      download("bincheck-inspection-report.csv", "text/csv", inspectionReportToCsv(report));
+    } else {
+      download("bincheck-inspection-report.json", "application/json", inspectionReportToJson(report));
+    }
+  }
+
   function perform(actionId) {
     switch (actionId) {
       case "focus-barcode":
@@ -459,7 +469,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       case "goto-batch": {
         const heading = doc.getElementById("batch-csv-heading");
         if (heading && typeof heading.scrollIntoView === "function") {
-          heading.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+          heading.scrollIntoView({ behavior: "auto", block: "start" });
         }
         els.csvInput.focus();
         break;
@@ -469,6 +479,9 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         break;
       case "print-report":
         printWithMode("report");
+        break;
+      case "download-report":
+        exportItemReport("json");
         break;
       case "open-help":
         openHelp();
@@ -524,7 +537,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         }
         const target = guided.scrollTarget ? doc.getElementById(guided.scrollTarget) : null;
         if (target && typeof target.scrollIntoView === "function") {
-          target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+          target.scrollIntoView({ behavior: "auto", block: "start" });
         }
         break;
       }
@@ -560,6 +573,12 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         break;
       case "export-json":
         exportBatch("json");
+        break;
+      case "export-report-csv":
+        exportItemReport("csv");
+        break;
+      case "export-report-json":
+        exportItemReport("json");
         break;
       case "run-benchmark":
         runBenchmarkNow();
@@ -602,7 +621,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         sweep();
         const heading = doc.getElementById("result-panel-card");
         if (heading && typeof heading.scrollIntoView === "function") {
-          heading.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+          heading.scrollIntoView({ behavior: "auto", block: "start" });
         }
         break;
       }
@@ -649,9 +668,14 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         dispatch({ type: "SET_NOTICE", text: `File is ${file.size} bytes. The limit is ${BATCH_LIMITS.maxBytes} bytes.` });
       } else {
         try {
-          const text = await file.text();
-          dispatch({ type: "SET_CSV_TEXT", text });
-          dispatch({ type: "RUN_BATCH" });
+          if (typeof file.arrayBuffer === "function") {
+            const buffer = await file.arrayBuffer();
+            dispatch({ type: "RUN_BATCH_FILE", bytes: new Uint8Array(buffer) });
+          } else {
+            const text = await file.text();
+            dispatch({ type: "SET_CSV_TEXT", text });
+            dispatch({ type: "RUN_BATCH" });
+          }
         } catch {
           dispatch({ type: "SET_NOTICE", text: "That file could not be read." });
         }
@@ -662,6 +686,12 @@ export function createApp({ document: doc, window: win, deps = {} }) {
 
   function handleKeydown(event) {
     const target = event.target || {};
+    if (target.id === "csv-input" && event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      dispatch({ type: "SET_CSV_TEXT", text: target.value });
+      dispatch({ type: "RUN_BATCH" });
+      return;
+    }
     if (target.id === "item-search" && (event.key === "ArrowDown" || event.key === "Enter")) {
       const first = els.searchResults.querySelector ? els.searchResults.querySelector("[data-search-index]") : null;
       if (first) {

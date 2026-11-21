@@ -286,8 +286,13 @@ export function decodeShareHash(hash) {
     }
     return { patch, issues };
   }
+  const pairs = text.split("&");
+  if (pairs.length > 24) {
+    issues.push(issue("HASH_TOO_COMPLEX", "warning", "hash", "Share link carries more parameters than BinCheck uses and was ignored."));
+    return { patch, issues };
+  }
   const seen = new Set();
-  for (const pair of text.split("&")) {
+  for (const pair of pairs) {
     const eq = pair.indexOf("=");
     if (eq < 1) {
       continue;

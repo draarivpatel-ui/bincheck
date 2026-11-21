@@ -18,7 +18,7 @@ import {
   assessEvidence,
   encodeShareHash
 } from "../js/bincheck-validate.js";
-import { runBatchFromCsv, SAMPLE_BATCH_CSV } from "../js/bincheck-batch.js";
+import { runBatchFromCsv, runBatchFromBytes, SAMPLE_BATCH_CSV } from "../js/bincheck-batch.js";
 
 export const MAX_CART_ITEMS = 50;
 
@@ -30,6 +30,7 @@ export const SHORTCUTS = Object.freeze([
   Object.freeze({ key: "a", id: "add-to-cart", description: "Add the current item to the virtual cart" }),
   Object.freeze({ key: "b", id: "goto-batch", description: "Jump to batch CSV inspection" }),
   Object.freeze({ key: "r", id: "run-benchmark", description: "Run the calibration benchmark" }),
+  Object.freeze({ key: "d", id: "download-report", description: "Download the inspection report as JSON" }),
   Object.freeze({ key: "p", id: "print-report", description: "Print the inspection report" }),
   Object.freeze({ key: "?", id: "open-help", description: "Show this shortcut list" }),
   Object.freeze({ key: "Escape", id: "close-help", description: "Close the shortcut list" })
@@ -220,6 +221,22 @@ export function reduce(state, action) {
         notice: blocking
           ? result.parse.errors[0].message
           : `Inspected ${result.totals.rows} rows: ${result.totals.evaluated} evaluated, ${result.totals.errors} could not be identified.`
+      };
+    }
+    case "RUN_BATCH_FILE": {
+      const result = runBatchFromBytes(action.bytes);
+      const blocking = result.rows.length === 0 && result.parse.errors.length > 0;
+      const decodedNote =
+        !blocking && result.parse.encoding && result.parse.encoding !== "utf-8"
+          ? ` (decoded from ${result.parse.encoding.toUpperCase()})`
+          : "";
+      return {
+        ...state,
+        csvText: typeof result.decodedText === "string" ? result.decodedText : state.csvText,
+        batchResult: result,
+        notice: blocking
+          ? result.parse.errors[0].message
+          : `Inspected ${result.totals.rows} rows: ${result.totals.evaluated} evaluated, ${result.totals.errors} could not be identified.${decodedNote}`
       };
     }
     case "CLEAR_BATCH": {

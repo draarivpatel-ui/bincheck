@@ -42,13 +42,13 @@
 
       <div class="header-actions">
         <div class="city-switcher" role="group" aria-label="Jurisdiction mode">
-          <button type="button" class="city-btn active" data-action="set-city" data-city-mode="Riverside-tx" aria-pressed="true">
+          <button type="button" class="city-btn active" data-action="set-city" data-city-mode="Riverside-tx" aria-pressed="true" aria-keyshortcuts="s">
             <span class="btn-slide-wrap"><span class="btn-slide-text">Riverside, TX</span></span>
           </button>
-          <button type="button" class="city-btn" data-action="set-city" data-city-mode="houston-tx" aria-pressed="false">
+          <button type="button" class="city-btn" data-action="set-city" data-city-mode="houston-tx" aria-pressed="false" aria-keyshortcuts="h">
             <span class="btn-slide-wrap"><span class="btn-slide-text">Houston, TX</span></span>
           </button>
-          <button type="button" class="city-btn" data-action="set-city" data-city-mode="compare" aria-pressed="false">
+          <button type="button" class="city-btn" data-action="set-city" data-city-mode="compare" aria-pressed="false" aria-keyshortcuts="c">
             <span class="btn-slide-wrap"><span class="btn-slide-text">Side-by-Side Comparison</span></span>
           </button>
         </div>
@@ -67,7 +67,7 @@
       <a class="nav-link" href="#batch-csv-heading">Batch CSV</a>
       <a class="nav-link" href="#benchmark-heading">Benchmark</a>
       <a class="nav-link" href="#cheatsheet-heading">Kitchen guide</a>
-      <button type="button" id="shortcut-help-btn" class="nav-link nav-help" data-action="open-help" aria-haspopup="dialog">Shortcuts <kbd>?</kbd></button>
+      <button type="button" id="shortcut-help-btn" class="nav-link nav-help" data-action="open-help" aria-haspopup="dialog" aria-keyshortcuts="?">Shortcuts <kbd>?</kbd></button>
     </nav>
   </header>
 
@@ -244,7 +244,7 @@
                 spellcheck="false"
                 maxlength="40"
                 enterkeyhint="search"
-                aria-describedby="barcode-status barcode-math-strip"
+                aria-describedby="barcode-status barcode-math-strip" aria-keyshortcuts="/"
                 aria-invalid="false"
                 class="tabular"
               />
@@ -366,7 +366,7 @@
         </div>
 
         <div class="batch-actions">
-          <button type="button" id="add-to-batch-btn" class="secondary-btn" data-action="add-cart">
+          <button type="button" id="add-to-batch-btn" class="secondary-btn" data-action="add-cart" aria-keyshortcuts="a">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -382,11 +382,19 @@
         <p id="result-live" class="sr-only" role="status" aria-live="polite"></p>
         <div id="evaluation-output"></div>
         <div class="result-actions no-print">
+          <button type="button" id="export-report-csv-btn" class="secondary-btn" data-action="export-report-csv">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download report CSV</span>
+          </button>
+          <button type="button" id="export-report-json-btn" class="secondary-btn" data-action="export-report-json" aria-keyshortcuts="d">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download report JSON <kbd>D</kbd></span>
+          </button>
           <button type="button" id="share-link-btn" class="secondary-btn" data-action="copy-link">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             <span>Copy share link</span>
           </button>
-          <button type="button" id="print-report-btn" class="secondary-btn" data-action="print-report">
+          <button type="button" id="print-report-btn" class="secondary-btn" data-action="print-report" aria-keyshortcuts="p">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             <span>Print inspection report <kbd>P</kbd></span>
           </button>
@@ -431,10 +439,10 @@
       <div class="csv-grid">
         <div class="csv-input-col">
           <label for="csv-input" class="field-label">Paste CSV text</label>
-          <textarea id="csv-input" class="csv-textarea tabular" rows="9" spellcheck="false" autocomplete="off" aria-describedby="csv-help" placeholder="label,barcode,material,resin,condition"></textarea>
-          <p id="csv-help" class="field-help">Columns: label, barcode, material, resin, condition. A header row is optional; without one, columns are read as barcode, material, resin, condition, label. Material uses ids like resin-1-pet or glass-jar-bottle. Lines starting with # are ignored. Rows BinCheck cannot identify are listed as errors and never guessed. The bundled sample is an illustrative synthetic dataset, not real household records.</p>
+          <textarea id="csv-input" class="csv-textarea tabular" rows="9" spellcheck="false" autocomplete="off" aria-describedby="csv-help" aria-keyshortcuts="b" placeholder="label,barcode,material,resin,condition"></textarea>
+          <p id="csv-help" class="field-help">Columns: label, barcode, material, resin, condition. A header row is optional; without one, columns are read as barcode, material, resin, condition, label. Material uses ids like resin-1-pet or glass-jar-bottle. Lines starting with # are ignored. Rows BinCheck cannot identify are listed as errors and never guessed. The bundled sample is an illustrative synthetic dataset, not real household records. Ctrl+Enter (or Cmd+Enter) inside the box runs the inspection.</p>
           <div class="csv-actions">
-            <button type="button" id="csv-run-btn" class="primary-btn" data-action="run-batch">Run inspection</button>
+            <button type="button" id="csv-run-btn" class="primary-btn" data-action="run-batch" aria-keyshortcuts="Control+Enter">Run inspection</button>
             <button type="button" id="csv-sample-btn" class="secondary-btn" data-action="load-sample">Load synthetic sample</button>
             <button type="button" id="csv-clear-btn" class="text-btn" data-action="clear-batch">Clear</button>
           </div>
@@ -459,7 +467,7 @@
           <h2 id="benchmark-heading">Calibration benchmark</h2>
         </div>
         <div class="benchmark-actions">
-          <button type="button" id="benchmark-run-btn" class="primary-btn" data-action="run-benchmark">Run benchmark <kbd>R</kbd></button>
+          <button type="button" id="benchmark-run-btn" class="primary-btn" data-action="run-benchmark" aria-keyshortcuts="r">Run benchmark <kbd>R</kbd></button>
           <button type="button" id="benchmark-export-btn" class="secondary-btn" data-action="export-benchmark" disabled>Download report JSON</button>
         </div>
       </div>

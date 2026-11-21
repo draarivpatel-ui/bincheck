@@ -523,7 +523,7 @@ export function renderBatchReport(result) {
     .join("");
 
   const errorLines = [
-    ...parseErrors.map((entry) => `<li><span class="tabular">${entry.line ? `Line ${entry.line}` : "Input"}:</span> ${escapeHtml(entry.message)}</li>`),
+    ...parseErrors.map((entry) => `<li><span class="tabular">${entry.line ? `Line ${entry.line}` : Number.isInteger(entry.offset) ? `Byte ${entry.offset}` : "Input"}:</span> ${escapeHtml(entry.message)}</li>`),
     ...result.rows
       .filter((row) => row.status === "ERROR")
       .map((row) => `<li><span class="tabular">Line ${row.line}:</span> ${escapeHtml(row.issues.map((entry) => entry.message).join(" "))}</li>`)
