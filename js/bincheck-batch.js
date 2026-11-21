@@ -687,9 +687,10 @@ export function parseBatchCsv(text) {
     // unnamed header cell and real condition values land in the named
     // column, so "barcode,,,clean,condition" is a sparse header, not
     // headerless data whose label happens to read "condition". Header
-    // detection never peeks at later rows (so rows past BATCH_LIMITS.maxRows
-    // can never alter earlier rows); instead, any row that strands a
-    // non-clean condition token in an unmapped cell fails closed below.
+    // detection inspects only row 1 (valid CSV rows past BATCH_LIMITS.maxRows
+    // never alter header detection or earlier verdicts; file-level binary and
+    // encoding validation still runs before CSV parsing); any row that strands
+    // a non-clean condition token in an unmapped cell fails closed below.
     const namedConditionIndex = headerColumns.indexOf("condition", 4);
     const hasConditionData = namedConditionIndex < 0
       && VALID_CONDITIONS.includes(String(records[0].cells[3] ?? "").trim().toLowerCase())
