@@ -441,6 +441,8 @@ export function parseCsv(text) {
   let recordMalformed = false;
   let skippedRows = 0;
   let malformedFirstLine = null;
+  let suspectFirstLine = null;
+  let recordBareQuote = false;
   let line = 1;
   let recordLine = 1;
   let touched = false;
@@ -462,12 +464,16 @@ export function parseCsv(text) {
         malformedFirstLine = recordLine;
       }
     } else if (!blank && !isComment) {
+      if (recordBareQuote && records.length === 0) {
+        suspectFirstLine = recordLine;
+      }
       records.push({ line: recordLine, cells });
     }
     cells = [];
     touched = false;
     touchedQuotedFirst = false;
     recordMalformed = false;
+    recordBareQuote = false;
   };
 
   for (let i = 0; i < source.length; i += 1) {
@@ -530,6 +536,7 @@ export function parseCsv(text) {
       line += 1;
       recordLine = line;
     } else {
+      if (ch === '"') recordBareQuote = true;
       field += ch;
       touched = true;
     }
@@ -541,12 +548,12 @@ export function parseCsv(text) {
       malformedFirstLine = recordLine;
     }
     errors.push(csvError(recordLine, "CSV_UNTERMINATED_QUOTE", "A quoted field was never closed. The rest of the file was ignored."));
-    return { records, errors, skippedRows, malformedFirstLine, unterminatedQuote: true };
+    return { records, errors, skippedRows, malformedFirstLine, suspectFirstLine, unterminatedQuote: true };
   }
   if (touched || field !== "" || cells.length > 0) {
     endRecord();
   }
-  return { records, errors, skippedRows, malformedFirstLine, unterminatedQuote: false };
+  return { records, errors, skippedRows, malformedFirstLine, suspectFirstLine, unterminatedQuote: false };
 }
 
 /**
@@ -614,6 +621,33 @@ export function parseBatchCsv(text) {
   let droppedRows = parsed.skippedRows || 0;
   const incompleteInput = parsed.unterminatedQuote === true;
 
+  if (parsed.malformedFirstLine !== null) {
+    // The first content row could not be read, so nothing establishes whether
+    // it named the columns. Falling back to positional columns or trusting a
+    // later surviving row as the header would be a guess that can silently
+    // assign values to the wrong fields, so the whole input is refused instead.
+    droppedRows += records.length;
+    errors.push(csvError(
+      parsed.malformedFirstLine,
+      "AMBIGUOUS_COLUMN_MAPPING",
+      "The first data row could not be read, so it is impossible to tell whether it named the columns. Guessing column positions could silently mislabel every row, so no rows were evaluated. Fix that row or add a header row and try again."
+    ));
+    return { rows: [], errors, hasHeader: false, columns, truncated: incompleteInput, truncatedByRowLimit: false, incompleteInput, droppedRows, bytes };
+  }
+  if (parsed.suspectFirstLine !== null) {
+    // The first content row survived only because the grammar tolerates a
+    // quote mark where no quoted field can open, so it may be a damaged
+    // header row. Same refusal as an unreadable first row: mapping by name
+    // or by position would be a guess.
+    droppedRows += records.length;
+    errors.push(csvError(
+      parsed.suspectFirstLine,
+      "AMBIGUOUS_COLUMN_MAPPING",
+      "The first data row holds a quote mark where a quoted field cannot begin, so it may be a damaged header row. Guessing column positions could silently mislabel every row, so no rows were evaluated. Fix that row or add a header row and try again."
+    ));
+    return { rows: [], errors, hasHeader: false, columns, truncated: incompleteInput, truncatedByRowLimit: false, incompleteInput, droppedRows, bytes };
+  }
+
   if (records.length > 0) {
     const firstCells = records[0].cells.map((cell) => cell.toLowerCase().replace(/[^a-z0-9]/g, ""));
     const headerColumns = firstCells.map((cell) => Object.hasOwn(HEADER_ALIASES, cell) ? HEADER_ALIASES[cell] : null);
@@ -655,18 +689,6 @@ export function parseBatchCsv(text) {
         return { rows: [], errors, hasHeader, columns, truncated: incompleteInput, truncatedByRowLimit: false, incompleteInput, droppedRows, bytes };
       }
       records = records.slice(1);
-    } else if (parsed.malformedFirstLine !== null) {
-      // The first content row could not be read, so nothing establishes whether
-      // it named the columns. Falling back to positional columns would be a
-      // guess that can silently assign values to the wrong fields, so the
-      // whole input is refused instead.
-      droppedRows += records.length;
-      errors.push(csvError(
-        parsed.malformedFirstLine,
-        "AMBIGUOUS_COLUMN_MAPPING",
-        "The first data row could not be read, so it is impossible to tell whether it named the columns. Guessing column positions could silently mislabel every row, so no rows were evaluated. Fix that row or add a header row and try again."
-      ));
-      return { rows: [], errors, hasHeader: false, columns, truncated: incompleteInput, truncatedByRowLimit: false, incompleteInput, droppedRows, bytes };
     }
   }
 

@@ -530,13 +530,33 @@ test("batch: a malformed first record fails closed instead of guessing positiona
   assert.equal(control.rows[0].cities["houston-tx"].stream, "TRASH_CART");
 });
 
-test("batch: a malformed first record before a readable header maps by name, and data-row recovery is unchanged", () => {
-  const afterBad = parseBatchCsv('"junk"x\nmaterial,label\nresin-1-pet,Bottle\n');
-  assert.equal(afterBad.hasHeader, true, "a clean known header still sets the mapping");
-  assert.equal(afterBad.rows.length, 1);
-  assert.equal(afterBad.rows[0].material, "resin-1-pet");
-  assert.equal(afterBad.droppedRows, 1);
-  assert.ok(!afterBad.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"));
+test("batch: a malformed first record always fails closed, even when a later row looks like a header", () => {
+  // A surviving data row can never stand in as the header once the real first
+  // content row was rejected, no matter how header-like its cells are.
+  for (const text of [
+    '"material"junk,label\nresin-6-ps-foam,material\nresin-6-ps-foam,resin-1-pet\n',
+    '"junk"x\nmaterial,label\nresin-1-pet,Bottle\n',
+    '"bad"tail,label\nresin-6-ps-foam,category\nresin-6-ps-foam,resin-1-pet\n',
+    '"bad"tail,label\nresin-6-ps-foam,label\nresin-6-ps-foam,resin-1-pet\n',
+    '"bad"tail,label\nresin-6-ps-foam,barcode\nresin-6-ps-foam,resin-1-pet\n',
+    '\n\n  \n# a comment\n"material"junk,label\nresin-6-ps-foam,material\nresin-6-ps-foam,resin-1-pet\n',
+    '"material"junk,label\n'
+  ]) {
+    for (const parsed of [parseBatchCsv(text), parseBatchBytes(enc.encode(text))]) {
+      assert.equal(parsed.rows.length, 0, JSON.stringify(text));
+      assert.equal(parsed.hasHeader, false, JSON.stringify(text));
+      const ambiguous = parsed.errors.find((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING");
+      assert.ok(ambiguous, `refusal must be named for ${JSON.stringify(text)}`);
+    }
+    const result = runBatchFromCsv(text);
+    assert.equal(result.rows.length, 0, JSON.stringify(text));
+    assert.equal(result.totals.evaluated, 0, "no row may earn a verdict from a rejected mapping");
+  }
+  const repro = parseBatchCsv('"material"junk,label\nresin-6-ps-foam,material\nresin-6-ps-foam,resin-1-pet\n');
+  assert.equal(repro.errors.find((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING").line, 1);
+  assert.equal(repro.droppedRows, 3, "the unreadable row and both surviving rows are counted");
+  const shifted = parseBatchCsv('# note\n\n"material"junk,label\nresin-6-ps-foam,material\n');
+  assert.equal(shifted.errors.find((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING").line, 3);
 
   const midFile = parseBatchCsv('material,label\n"x"junk,Bottle\nresin-1-pet,Bottle\n"y"more,Can\nresin-2-hdpe,Can\n');
   assert.equal(midFile.hasHeader, true);
@@ -547,6 +567,27 @@ test("batch: a malformed first record before a readable header maps by name, and
   const headerless = parseBatchCsv('041220576463,resin-1-pet\n"x"junk,resin-2-hdpe\n041220948321,resin-2-hdpe\n');
   assert.equal(headerless.rows.length, 2, "a malformed row after a clean first record keeps positional recovery");
   assert.ok(!headerless.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"));
+});
+
+test("batch: a stray quote inside the first record fails closed like a damaged header", () => {
+  // The grammar keeps tolerating quotes inside ordinary cells, but the first
+  // content row carries the column mapping, so a bare quote there is refused.
+  for (const text of [
+    'material"junk,label\nresin-6-ps-foam,resin-1-pet\n',
+    'material,la"bel\nresin-6-ps-foam,resin-1-pet\n',
+    'a"b"c,resin-1-pet\nx,resin-2-hdpe\n'
+  ]) {
+    for (const parsed of [parseBatchCsv(text), parseBatchBytes(enc.encode(text))]) {
+      assert.equal(parsed.rows.length, 0, JSON.stringify(text));
+      assert.equal(parsed.hasHeader, false, JSON.stringify(text));
+      assert.ok(parsed.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"), JSON.stringify(text));
+    }
+  }
+  const second = parseBatchCsv('ok,row\nmaterial"junk,label\nresin-6-ps-foam,resin-1-pet\n');
+  assert.equal(second.rows.length, 3, "a stray quote in a later record stays permissive");
+  assert.ok(!second.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"));
+  const { records } = parseCsv('a"b"c,d');
+  assert.deepEqual(records[0].cells, ['a"b"c', "d"], "the raw grammar never drops the cell");
 });
 
 test("batch: dropped rows are counted for truncation, malformed and unterminated input", () => {
