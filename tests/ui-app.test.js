@@ -492,6 +492,34 @@ test("ui: the single-key shortcut toggle disables letters, keeps Escape and Ctrl
   app.destroy();
 });
 
+test("ui: the help dialog marks single-key shortcuts off whenever the toggle changes", () => {
+  const { dom, el, app } = boot();
+  const list = el("shortcut-list");
+  assert.ok(!/shortcut-off/.test(list.innerHTML), "nothing is marked off while enabled");
+
+  const headerToggle = el("shortcuts-toggle");
+  headerToggle.checked = false;
+  dom.change(headerToggle);
+  const offRows = list.innerHTML.match(/<li class="shortcut-off">/g) || [];
+  assert.equal(offRows.length, 10, "every printable single-key row is marked off");
+  assert.match(list.innerHTML, /<li class="shortcut-off"><kbd>d<\/kbd>/, "D is marked off");
+  assert.match(list.innerHTML, /<li class="shortcut-off"><kbd>p<\/kbd>/, "P is marked off");
+  assert.match(list.innerHTML, /<li><kbd>Esc<\/kbd>/, "Escape is never marked off");
+  assert.match(list.innerHTML, /class="shortcut-state">off</, "the off state is written out");
+
+  const dialogToggle = el("shortcuts-dialog-toggle");
+  dialogToggle.checked = true;
+  dom.change(dialogToggle);
+  assert.ok(!/shortcut-off/.test(list.innerHTML), "re-enabling clears every off mark");
+  app.destroy();
+});
+
+test("ui: a stored off preference renders the help list with off marks at boot", () => {
+  const { el, app } = boot({ storage: memoryStorage({ "bincheck:single-key-shortcuts": "off" }) });
+  assert.match(el("shortcut-list").innerHTML, /<li class="shortcut-off"><kbd>d<\/kbd>/);
+  app.destroy();
+});
+
 test("ui: a stored off preference disables shortcuts on the next session", () => {
   const storage = memoryStorage({ "bincheck:single-key-shortcuts": "off" });
   const { dom, el, app, downloads } = boot({ storage });

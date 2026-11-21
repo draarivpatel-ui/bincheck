@@ -159,6 +159,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   let destroyed = false;
   let lastHash = null;
   let lastLive = "";
+  let renderedSingleKey = null;
   let searchQuery = "";
   let impactClean = 20;
   let impactCount = 1;
@@ -270,6 +271,10 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       } else if (el.getAttribute("aria-keyshortcuts") !== keys) {
         el.setAttribute("aria-keyshortcuts", keys);
       }
+    }
+    if (singleKeyOn !== renderedSingleKey) {
+      renderedSingleKey = singleKeyOn;
+      els.shortcutList.innerHTML = renderShortcutList(singleKeyOn);
     }
 
     els.barcodeStatus.className = `barcode-status tabular ${vm.barcodeStatus.tone === "idle" ? "" : vm.barcodeStatus.tone}`.trim();
@@ -806,7 +811,6 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     option.textContent = `${item.upc} - ${item.productName}`;
     els.catalogSelect.appendChild(option);
   }
-  els.shortcutList.innerHTML = renderShortcutList();
   els.statBarcodes.textContent = `${VERIFIED_BARCODE_CATALOG.length} GS1 codes`;
   els.statMaterials.textContent = `${Object.keys(MATERIAL_CATEGORIES).length} Streams`;
   els.statCities.textContent = `${Object.keys(SUPPORTED_CITIES).length} Cities`;

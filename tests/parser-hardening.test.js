@@ -508,14 +508,60 @@ test("batch: duplicate canonical headers are rejected naming both columns", () =
   assert.ok(!mixed.errors.some((entry) => entry.code === "DUPLICATE_COLUMN"));
 });
 
+test("batch: a malformed first record fails closed instead of guessing positional columns", () => {
+  const text = '"material"junk,label\nresin-6-ps-foam,resin-1-pet\n';
+  const parsed = parseBatchCsv(text);
+  assert.equal(parsed.rows.length, 0, "no row is evaluated from an ambiguous mapping");
+  assert.equal(parsed.hasHeader, false);
+  assert.ok(parsed.errors.some((entry) => entry.code === "CSV_TRAILING_CHARS"));
+  const ambiguous = parsed.errors.find((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING");
+  assert.ok(ambiguous, "the refusal is a named parse error");
+  assert.equal(ambiguous.line, 1);
+  assert.equal(parsed.droppedRows, 2, "the unreadable row and the surviving row are both counted");
+
+  const result = runBatchFromCsv(text);
+  assert.equal(result.rows.length, 0);
+  assert.equal(result.totals.evaluated, 0, "positional guessing never assigns a verdict");
+  assert.ok(result.parse.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"));
+
+  // The same data under a readable header shows the verdict the guess hid.
+  const control = runBatchFromCsv("material,label\nresin-6-ps-foam,resin-1-pet\n");
+  assert.equal(control.rows[0].cities["Riverside-tx"].stream, "SPECIAL_DROPOFF");
+  assert.equal(control.rows[0].cities["houston-tx"].stream, "TRASH_CART");
+});
+
+test("batch: a malformed first record before a readable header maps by name, and data-row recovery is unchanged", () => {
+  const afterBad = parseBatchCsv('"junk"x\nmaterial,label\nresin-1-pet,Bottle\n');
+  assert.equal(afterBad.hasHeader, true, "a clean known header still sets the mapping");
+  assert.equal(afterBad.rows.length, 1);
+  assert.equal(afterBad.rows[0].material, "resin-1-pet");
+  assert.equal(afterBad.droppedRows, 1);
+  assert.ok(!afterBad.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"));
+
+  const midFile = parseBatchCsv('material,label\n"x"junk,Bottle\nresin-1-pet,Bottle\n"y"more,Can\nresin-2-hdpe,Can\n');
+  assert.equal(midFile.hasHeader, true);
+  assert.equal(midFile.rows.length, 2, "malformed data rows under a known header are still skipped, not fatal");
+  assert.equal(midFile.droppedRows, 2);
+  assert.ok(!midFile.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"));
+
+  const headerless = parseBatchCsv('041220576463,resin-1-pet\n"x"junk,resin-2-hdpe\n041220948321,resin-2-hdpe\n');
+  assert.equal(headerless.rows.length, 2, "a malformed row after a clean first record keeps positional recovery");
+  assert.ok(!headerless.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"));
+});
+
 test("batch: dropped rows are counted for truncation, malformed and unterminated input", () => {
   const cut = parseBatchCsv("label,material\nBottle,resin-1-pet\n\"Broken");
   assert.equal(cut.rows.length, 1);
   assert.equal(cut.droppedRows, 1, "the unterminated record is counted as dropped");
+  assert.equal(cut.incompleteInput, true);
+  assert.equal(cut.truncated, true, "the swallowed tail marks the input truncated");
+  assert.equal(cut.truncatedByRowLimit, false);
   assert.ok(cut.errors.some((entry) => entry.code === "CSV_UNTERMINATED_QUOTE"));
 
   const over = parseBatchCsv(`barcode\n${Array.from({ length: BATCH_LIMITS.maxRows + 3 }, () => "041220576463").join("\n")}`);
   assert.equal(over.truncated, true);
+  assert.equal(over.truncatedByRowLimit, true);
+  assert.equal(over.incompleteInput, false);
   assert.equal(over.droppedRows, 3);
 
   const malformed = parseBatchCsv('label,material\n"x"junk,resin-1-pet\nBottle,resin-1-pet\n"y"more,resin-2-hdpe\n');
@@ -527,6 +573,9 @@ test("batch: dropped rows are counted for truncation, malformed and unterminated
 
   const clean = parseBatchCsv("label,material\nBottle,resin-1-pet\n");
   assert.equal(clean.droppedRows, 0);
+  assert.equal(clean.truncated, false);
+  assert.equal(clean.truncatedByRowLimit, false);
+  assert.equal(clean.incompleteInput, false);
 });
 
 test("batch: extra cells past the known columns are dropped with a named error", () => {
@@ -733,7 +782,7 @@ test("batch invariants: seeded CSV fuzz never throws and keeps error codes known
   const cells = ["041220576463", "resin-1-pet", "1", "clean", "x", "", ",", '"q"', "#tag", "3", "greasy"];
   const knownParseCodes = new Set([
     "CSV_UNTERMINATED_QUOTE", "CSV_TRAILING_CHARS", "UNKNOWN_COLUMN", "DUPLICATE_COLUMN", "ROW_LIMIT", "EXTRA_CELLS",
-    "NO_DATA_ROWS", "UNUSUAL_CHARACTERS", "BINARY_LIKE_INPUT"
+    "NO_DATA_ROWS", "UNUSUAL_CHARACTERS", "BINARY_LIKE_INPUT", "AMBIGUOUS_COLUMN_MAPPING"
   ]);
   for (let i = 0; i < 120; i += 1) {
     const rows = 1 + Math.floor(rng() * 6);

@@ -2213,6 +2213,26 @@ p.kpi-hint {
   font-size: 0.88rem;
 }
 
+.shortcut-list li.shortcut-off {
+  color: var(--muted);
+}
+
+.shortcut-list li.shortcut-off kbd {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.shortcut-state {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.02rem 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
 .shortcut-toggle {
   display: inline-flex;
   align-items: center;

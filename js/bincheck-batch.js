@@ -440,6 +440,7 @@ export function parseCsv(text) {
   let afterCloseQuote = false;
   let recordMalformed = false;
   let skippedRows = 0;
+  let malformedFirstLine = null;
   let line = 1;
   let recordLine = 1;
   let touched = false;
@@ -457,6 +458,9 @@ export function parseCsv(text) {
     const isComment = !blank && first.startsWith("#") && !touchedQuotedFirst;
     if (recordMalformed) {
       skippedRows += 1;
+      if (malformedFirstLine === null && records.length === 0) {
+        malformedFirstLine = recordLine;
+      }
     } else if (!blank && !isComment) {
       records.push({ line: recordLine, cells });
     }
@@ -533,20 +537,29 @@ export function parseCsv(text) {
 
   if (inQuotes) {
     skippedRows += 1;
+    if (malformedFirstLine === null && records.length === 0) {
+      malformedFirstLine = recordLine;
+    }
     errors.push(csvError(recordLine, "CSV_UNTERMINATED_QUOTE", "A quoted field was never closed. The rest of the file was ignored."));
-    return { records, errors, skippedRows };
+    return { records, errors, skippedRows, malformedFirstLine, unterminatedQuote: true };
   }
   if (touched || field !== "" || cells.length > 0) {
     endRecord();
   }
-  return { records, errors, skippedRows };
+  return { records, errors, skippedRows, malformedFirstLine, unterminatedQuote: false };
 }
 
 /**
  * Parses batch CSV text into normalized row objects.
- * Returns { rows, errors, hasHeader, columns, truncated, droppedRows, bytes }.
- * `droppedRows` counts records that were read but never evaluated: rows past
- * the limit, malformed quoted rows and rows dropped by a rejected header.
+ * Returns { rows, errors, hasHeader, columns, truncated, truncatedByRowLimit,
+ * incompleteInput, droppedRows, bytes }.
+ * `truncated` is true whenever part of the input was left unprocessed, whether
+ * the row cap cut it (`truncatedByRowLimit`) or an unclosed quoted field
+ * swallowed the rest of the file (`incompleteInput`).
+ * `droppedRows` counts only records whose boundaries are known: rows past the
+ * limit, malformed quoted rows, rows left unevaluated by a rejected mapping,
+ * and the one record an unclosed quote began. Text trapped inside an unclosed
+ * field is never counted as additional rows.
  */
 export function parseBatchCsv(text) {
   const errors = [];
@@ -557,6 +570,8 @@ export function parseBatchCsv(text) {
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
+      truncatedByRowLimit: false,
+      incompleteInput: false,
       droppedRows: 0,
       bytes: 0
     };
@@ -569,6 +584,8 @@ export function parseBatchCsv(text) {
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
+      truncatedByRowLimit: false,
+      incompleteInput: false,
       droppedRows: 0,
       bytes
     };
@@ -582,6 +599,8 @@ export function parseBatchCsv(text) {
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
+      truncatedByRowLimit: false,
+      incompleteInput: false,
       droppedRows: 0,
       bytes
     };
@@ -593,6 +612,7 @@ export function parseBatchCsv(text) {
   let columns = [...HEADERLESS_COLUMNS];
   let hasHeader = false;
   let droppedRows = parsed.skippedRows || 0;
+  const incompleteInput = parsed.unterminatedQuote === true;
 
   if (records.length > 0) {
     const firstCells = records[0].cells.map((cell) => cell.toLowerCase().replace(/[^a-z0-9]/g, ""));
@@ -632,15 +652,27 @@ export function parseBatchCsv(text) {
           });
         }
         droppedRows += records.length - 1;
-        return { rows: [], errors, hasHeader, columns, truncated: false, droppedRows, bytes };
+        return { rows: [], errors, hasHeader, columns, truncated: incompleteInput, truncatedByRowLimit: false, incompleteInput, droppedRows, bytes };
       }
       records = records.slice(1);
+    } else if (parsed.malformedFirstLine !== null) {
+      // The first content row could not be read, so nothing establishes whether
+      // it named the columns. Falling back to positional columns would be a
+      // guess that can silently assign values to the wrong fields, so the
+      // whole input is refused instead.
+      droppedRows += records.length;
+      errors.push(csvError(
+        parsed.malformedFirstLine,
+        "AMBIGUOUS_COLUMN_MAPPING",
+        "The first data row could not be read, so it is impossible to tell whether it named the columns. Guessing column positions could silently mislabel every row, so no rows were evaluated. Fix that row or add a header row and try again."
+      ));
+      return { rows: [], errors, hasHeader: false, columns, truncated: incompleteInput, truncatedByRowLimit: false, incompleteInput, droppedRows, bytes };
     }
   }
 
-  let truncated = false;
+  let truncatedByRowLimit = false;
   if (records.length > BATCH_LIMITS.maxRows) {
-    truncated = true;
+    truncatedByRowLimit = true;
     droppedRows += records.length - BATCH_LIMITS.maxRows;
     errors.push(csvError(records[BATCH_LIMITS.maxRows].line, "ROW_LIMIT", `Only the first ${BATCH_LIMITS.maxRows} rows were read.`));
     records = records.slice(0, BATCH_LIMITS.maxRows);
@@ -670,7 +702,17 @@ export function parseBatchCsv(text) {
     errors.push(csvError(0, "NO_DATA_ROWS", "No data rows were found."));
   }
 
-  return { rows, errors, hasHeader, columns, truncated, droppedRows, bytes };
+  return {
+    rows,
+    errors,
+    hasHeader,
+    columns,
+    truncated: truncatedByRowLimit || incompleteInput,
+    truncatedByRowLimit,
+    incompleteInput,
+    droppedRows,
+    bytes
+  };
 }
 
 function summarizeCity(cityId, evaluatedRows) {
@@ -814,6 +856,8 @@ export function runBatchFromCsv(text) {
       errors: parsed.errors,
       hasHeader: parsed.hasHeader,
       truncated: parsed.truncated,
+      truncatedByRowLimit: parsed.truncatedByRowLimit,
+      incompleteInput: parsed.incompleteInput,
       droppedRows: parsed.droppedRows,
       bytes: parsed.bytes,
       encoding: "utf-8"
@@ -839,6 +883,8 @@ export function parseBatchBytes(input) {
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
+      truncatedByRowLimit: false,
+      incompleteInput: false,
       droppedRows: 0,
       bytes: decoded.byteCount,
       encoding: decoded.encoding,
@@ -863,6 +909,8 @@ export function runBatchFromBytes(input) {
       errors: parsed.errors,
       hasHeader: parsed.hasHeader,
       truncated: parsed.truncated,
+      truncatedByRowLimit: parsed.truncatedByRowLimit,
+      incompleteInput: parsed.incompleteInput,
       droppedRows: parsed.droppedRows,
       bytes: parsed.bytes,
       encoding: parsed.encoding
@@ -940,6 +988,8 @@ export function batchResultToJson(result, options = {}) {
       encoding: parse.encoding ?? null,
       bytes: Number.isInteger(parse.bytes) ? parse.bytes : null,
       truncated: parse.truncated === true,
+      truncatedByRowLimit: parse.truncatedByRowLimit === true,
+      incompleteInput: parse.incompleteInput === true,
       droppedRows: Number.isInteger(parse.droppedRows) ? parse.droppedRows : 0,
       errors: (Array.isArray(parse.errors) ? parse.errors : []).map((entry) => ({ ...entry }))
     },

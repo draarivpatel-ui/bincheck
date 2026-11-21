@@ -450,6 +450,22 @@ test("render: helpers format consistently", () => {
   assert.equal((renderShortcutList().match(/<li>/g) || []).length, SHORTCUTS.length);
 });
 
+test("render: the shortcut list marks single-key shortcuts off while they are disabled", () => {
+  const on = renderShortcutList(true);
+  assert.ok(!/shortcut-off/.test(on), "nothing is marked while enabled");
+  const off = renderShortcutList(false);
+  const singleKeys = SHORTCUTS.filter((entry) => entry.key.length === 1).length;
+  assert.equal((off.match(/class="shortcut-off"/g) || []).length, singleKeys, "every printable key is marked off");
+  assert.equal((off.match(/<li>/g) || []).length, 1, "only Escape stays unmarked");
+  assert.match(off, /<li><kbd>Esc<\/kbd>/);
+  for (const entry of SHORTCUTS) {
+    if (entry.key === "Escape") continue;
+    assert.match(off, new RegExp(`<li class="shortcut-off"><kbd>${entry.key.replace(/[/?]/g, "\\$&")}</kbd>`), entry.key);
+  }
+  assert.match(off, /class="shortcut-state">off</, "the state is written out, not only styled");
+  assert.equal((renderShortcutList().match(/<li>/g) || []).length, SHORTCUTS.length, "the default stays enabled");
+});
+
 /* ---------------- Query normalization and evidence edge cases ---------------- */
 
 

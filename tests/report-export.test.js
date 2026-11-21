@@ -196,7 +196,9 @@ test("batch json: parse errors, byte diagnostics, truncation and dropped rows ar
   assert.equal(payload.parse.encoding, "utf-8");
   assert.equal(payload.parse.bytes, result.parse.bytes);
   assert.equal(payload.parse.hasHeader, true);
-  assert.equal(payload.parse.truncated, false);
+  assert.equal(payload.parse.truncated, true, "the ignored tail marks the input truncated");
+  assert.equal(payload.parse.truncatedByRowLimit, false);
+  assert.equal(payload.parse.incompleteInput, true, "an unclosed quote is reported as incomplete input");
   assert.equal(payload.parse.droppedRows, 1, "the unterminated record is reported as dropped");
   assert.equal(payload.parse.errors.length, 1);
   assert.equal(payload.parse.errors[0].code, "CSV_UNTERMINATED_QUOTE");
@@ -205,6 +207,8 @@ test("batch json: parse errors, byte diagnostics, truncation and dropped rows ar
   const over = runBatchFromCsv(`barcode\n${Array.from({ length: BATCH_LIMITS.maxRows + 2 }, () => "041220576463").join("\n")}`);
   const overJson = JSON.parse(batchResultToJson(over));
   assert.equal(overJson.parse.truncated, true);
+  assert.equal(overJson.parse.truncatedByRowLimit, true);
+  assert.equal(overJson.parse.incompleteInput, false);
   assert.equal(overJson.parse.droppedRows, 2);
   assert.ok(overJson.parse.errors.some((entry) => entry.code === "ROW_LIMIT"));
 
@@ -213,6 +217,9 @@ test("batch json: parse errors, byte diagnostics, truncation and dropped rows ar
   assert.equal(utf16Json.parse.encoding, "utf-16le");
   assert.equal(utf16Json.parse.bytes > 0, true);
   assert.equal(utf16Json.parse.droppedRows, 0);
+  assert.equal(utf16Json.parse.truncated, false);
+  assert.equal(utf16Json.parse.truncatedByRowLimit, false);
+  assert.equal(utf16Json.parse.incompleteInput, false);
 
   // A rejected duplicate header also lands in the export diagnostics.
   const dup = runBatchFromCsv("material,category\nresin-6-ps-foam,resin-1-pet\n");
@@ -220,6 +227,33 @@ test("batch json: parse errors, byte diagnostics, truncation and dropped rows ar
   assert.equal(dupJson.rows.length, 0);
   assert.equal(dupJson.parse.droppedRows, 1);
   assert.equal(dupJson.parse.errors.at(-1).code, "DUPLICATE_COLUMN");
+});
+
+test("batch json: a multi-line unclosed quote exports incomplete input and never invents row counts", () => {
+  const text = "label,material\nBottle,resin-1-pet\n\"Broken\nmore,trapped\nstill,inside\nresin-6-ps-foam,Can";
+  const result = runBatchFromCsv(text);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.totals.evaluated, 1, "only the row before the unclosed quote is evaluated");
+  const payload = JSON.parse(batchResultToJson(result));
+  assert.equal(payload.parse.truncated, true);
+  assert.equal(payload.parse.truncatedByRowLimit, false);
+  assert.equal(payload.parse.incompleteInput, true);
+  assert.equal(payload.parse.droppedRows, 1, "trapped lines count once: the record that began, not guessed rows");
+  assert.equal(payload.totals.rows, 1);
+  assert.ok(payload.parse.errors.some((entry) => entry.code === "CSV_UNTERMINATED_QUOTE"));
+
+  const both = runBatchFromCsv(
+    `barcode\n${Array.from({ length: BATCH_LIMITS.maxRows + 2 }, () => "041220576463").join("\n")}\n"Broken\ntail,discarded`
+  );
+  const bothJson = JSON.parse(batchResultToJson(both));
+  assert.equal(bothJson.parse.truncated, true);
+  assert.equal(bothJson.parse.truncatedByRowLimit, true, "the row cap also fired");
+  assert.equal(bothJson.parse.incompleteInput, true, "and the tail was incomplete too");
+  assert.equal(bothJson.parse.droppedRows, 3, "two over-limit rows plus the one unterminated record");
+
+  const ambiguous = JSON.parse(batchResultToJson(runBatchFromCsv('"material"junk,label\nresin-6-ps-foam,resin-1-pet\n')));
+  assert.equal(ambiguous.rows.length, 0);
+  assert.ok(ambiguous.parse.errors.some((entry) => entry.code === "AMBIGUOUS_COLUMN_MAPPING"));
 });
 
 test("batch json: diagnostics survive on results with no parse block and stay deterministic", () => {

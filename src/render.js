@@ -714,9 +714,9 @@ export function renderPrintReport(vm, batchResult) {
   `;
 }
 
-export function renderShortcutList() {
-  return SHORTCUTS.map(
-    (entry) =>
-      `<li><kbd>${escapeHtml(entry.key === "Escape" ? "Esc" : entry.key)}</kbd><span>${escapeHtml(entry.description)}</span></li>`
-  ).join("");
+export function renderShortcutList(singleKeyOn = true) {
+  return SHORTCUTS.map((entry) => {
+    const off = !singleKeyOn && entry.key.length === 1;
+    return `<li${off ? ' class="shortcut-off"' : ""}><kbd>${escapeHtml(entry.key === "Escape" ? "Esc" : entry.key)}</kbd><span>${escapeHtml(entry.description)}${off ? ' <span class="shortcut-state">off</span>' : ""}</span></li>`;
+  }).join("");
 }
