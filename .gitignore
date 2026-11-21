@@ -4,3 +4,4 @@ node_modules/
 coverage/
 .env
 video/*.mp4
+video/*.wav

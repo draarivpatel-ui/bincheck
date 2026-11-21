@@ -1,13 +1,13 @@
-A few miles apart on US 59, Riverside and Houston disagree about foam, glass drop-off, and yard bags. BinCheck answers which bin, for both cities, and shows its evidence.
+A few miles apart on US 59, Riverside and Houston disagree about foam, glass, and yard bags. BinCheck answers which bin, for both cities, and shows its evidence.
 
-Start typing. Foam. Every match shows both cities at once, and the purple edge marks an item the cities treat differently. Pick the foam cup. Riverside points it to the drop-off at the county County Recycling Center. Switch to Houston, and the same cup goes in the black garbage cart.
+Three guided cards run the headline demos. The first applies a foam cup in side-by-side mode. The banner flags a verdict the cities treat differently. Riverside points the cup to the county County Recycling Center drop-off. The same cup goes in Houston's black garbage cart.
 
-Every answer leads with one word, one color, and one icon. Recycle, trash, drop-off, yard waste, or split it. A greasy pizza box splits: tear off the clean lid to recycle, and trash the greasy bottom.
+Search finds 45 catalog items, and every match shows both cities at once. The purple edge marks items the cities treat differently. Every answer leads with one word, one color, and one icon. A greasy pizza box splits: tear off the clean lid to recycle, and trash the greasy bottom.
 
-Now the contamination calculator. Here is one lithium battery among 20 clean bottles. The average risk is low, but load status follows the worst item, so the whole load is flagged. Drag in more clean bottles, and it still cannot be diluted. Take the battery out, and the load is clean again.
+Now the contamination calculator. Here is one lithium battery inside 30 clean bottles. Only 3.2 percent of the load is in the wrong bin, but status follows the worst item, so the whole load is flagged. Drag in more clean bottles, and it still cannot be diluted. Take the battery out, and the load is clean again.
 
-Type a barcode, and BinCheck checks the GS1 check digit before it trusts the code. The calibration benchmark grades the engine against anchors in the cities' published rules, and refuses to run if an anchor changes. It scores 35 cases and 69 city evaluations: 32 true positives, 37 true negatives, zero false positives, and zero false negatives. Stream accuracy is 58 of 58. Every single-digit substitution is caught: 3,024 of 3,024. Adjacent swaps are 226 of 245, and every miss swaps two digits that differ by five, a known blind spot of GS1 Modulo 10.
+Type a barcode, and BinCheck checks the GS1 check digit before it trusts the code. Expected 3, found 4, so this code never reaches the engine. The calibration benchmark anchors every case to fields in the published rules snapshot. It scores 35 cases and 69 city evaluations, and every scored case matched with zero false positives. Stream accuracy is 58 of 58. Every single-digit substitution is caught: 3,024 of 3,024. Adjacent swaps are caught 226 of 245 times, and every miss swaps digits differing by five. The engine ships with 316 of 316 tests passing.
 
-Batch mode checks up to 500 CSV rows against both cities. Rows the engine cannot identify are reported as errors and never guessed, and exports are deterministic CSV or JSON. The print stylesheet turns the guide into a one-page kitchen reference.
+The third card audits a nine-row synthetic CSV; batch mode accepts up to 500 rows per city. Rows it cannot identify are listed as errors, never guessed; exports are deterministic and formula-safe.
 
-It runs offline with no trackers, no external fonts, and scripts allowed only from its own origin. These numbers measure agreement with the rules snapshot, not field accuracy, and no household testing has been done. BinCheck. Know the bin before it goes in.
+The print stylesheet turns the whole guide into a one-page kitchen reference. It runs fully offline: no trackers, no external requests. These numbers measure agreement with the rules snapshot, not field accuracy, and no household testing has been done. BinCheck. Know the bin before it goes in.
