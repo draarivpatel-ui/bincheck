@@ -719,37 +719,54 @@ test("batch: a sparse header that names the condition column after blank cells i
   assert.equal(sparse.rows[1].label, "bottle");
 });
 
-test("batch: positional condition cells outvote a sparse header that names condition late", () => {
-  // The sparse header reading of "barcode,,,clean,condition" is only safe
-  // while data rows actually use the named column. A data row that parks
-  // its condition in the positional fourth slot proves the file is
-  // headerless: trusting the header would silently drop "liquid-full" and
-  // report the bottle as a clean recycle-cart item.
+test("batch: sparse header stays row-1 pure, preserves named material, and fails closed on stranded non-clean conditions", () => {
+  // Header detection inspects only row 1, so a sparse header declaring
+  // condition after blank cells keeps its named columns even when an
+  // unnamed column holds "clean" (default) or another value, and any row
+  // that strands a non-clean condition token in an unmapped cell fails
+  // closed loudly with UNMAPPED_CONDITION instead of advising RECYCLE_CART.
   const repro = "barcode,,,clean,condition\n041220576463,,,liquid-full,\n";
   const parsed = parseBatchCsv(repro);
-  assert.equal(parsed.hasHeader, false);
-  assert.equal(parsed.rows.length, 2);
-  assert.equal(parsed.rows[1].condition, "liquid-full");
+  assert.equal(parsed.hasHeader, true);
+  assert.equal(parsed.rows.length, 1);
 
   const result = runBatchFromCsv(repro);
-  assert.equal(result.rows[0].status, "ERROR", "the first row is data and fails loudly");
-  assert.equal(result.rows[1].cities["Riverside-tx"].stream, "SPLIT_DISPOSAL");
-  assert.equal(result.rows[1].cities["houston-tx"].stream, "SPLIT_DISPOSAL");
+  assert.equal(result.rows[0].status, "ERROR");
+  assert.equal(result.rows[0].issues[0].code, "UNMAPPED_CONDITION");
+  assert.equal(result.rows[0].cities, null);
 
-  // Every positional condition word counts, and a named cell holding only
-  // an export placeholder is still empty. The condition must reach the
-  // row's condition field instead of vanishing into an unnamed column.
+  // Every non-clean condition word stranded in an unmapped cell fails closed.
   for (const [text, condition] of [
     ["barcode,,,clean,condition\n041220576463,,,greasy,\n", "greasy"],
     ["barcode,,,clean,condition\n041220576463,,,broken,\n041220948321,,,clean,\n", "broken"],
     ["barcode,,,clean,condition\n041220576463,,,liquid-full,-\n", "liquid-full"],
     ["barcode,,,clean,state\n041220576463,,,liquid-full,\n", "liquid-full"]
   ]) {
-    assert.equal(parseBatchCsv(text).hasHeader, false, JSON.stringify(text));
     const run = runBatchFromCsv(text);
-    assert.equal(run.rows[1].input.condition, condition, JSON.stringify(text));
-    assert.notEqual(run.rows[1].status, "ERROR", JSON.stringify(text));
+    assert.equal(run.parse.hasHeader, true, JSON.stringify(text));
+    assert.equal(run.rows[0].status, "ERROR", JSON.stringify(text));
+    assert.equal(run.rows[0].issues[0].code, "UNMAPPED_CONDITION", JSON.stringify(text));
+    assert.match(run.rows[0].issues[0].message, new RegExp(condition));
+    assert.equal(run.rows[0].cities, null);
   }
+
+  // Named material after a sparse condition header is preserved even when
+  // the unmapped "clean" cell holds the neutral default word "clean".
+  const foam = runBatchFromCsv("barcode,,,clean,condition,material\n041220576463,,,clean,,resin-6-ps-foam\n");
+  assert.equal(foam.parse.hasHeader, true);
+  assert.equal(foam.rows[0].status, "OK");
+  assert.equal(foam.rows[0].cities["Riverside-tx"].stream, "SPECIAL_DROPOFF");
+  assert.equal(foam.rows[0].cities["houston-tx"].stream, "TRASH_CART");
+
+  // Rows past BATCH_LIMITS.maxRows can never alter header detection or any
+  // earlier row's verdict.
+  const baseBatch = "barcode,,,clean,condition\n041220576463,,,liquid-full,\n" + "041220948321,,,,\n".repeat(499);
+  const withOverflowRow = baseBatch + "041220948321,,,,clean\n";
+  const rBase = runBatchFromCsv(baseBatch);
+  const rOverflow = runBatchFromCsv(withOverflowRow);
+  assert.equal(rBase.parse.hasHeader, rOverflow.parse.hasHeader);
+  assert.equal(rBase.rows[0].status, rOverflow.rows[0].status);
+  assert.equal(rBase.rows[0].issues[0].code, rOverflow.rows[0].issues[0].code);
 });
 
 test("batch: a named condition column in use keeps the sparse header and stray cells fail closed", () => {

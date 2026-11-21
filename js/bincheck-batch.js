@@ -686,23 +686,12 @@ export function parseBatchCsv(text) {
     // declares its own layout: the condition word in that slot is an
     // unnamed header cell and real condition values land in the named
     // column, so "barcode,,,clean,condition" is a sparse header, not
-    // headerless data whose label happens to read "condition". That
-    // reading holds only while the rest of the file agrees with it: a
-    // later record that parks a recognized condition in the positional
-    // fourth slot while leaving the named column empty is a positional
-    // data row, and trusting the header would silently discard its
-    // condition. Once any record fills the named column the declaration
-    // is real and the header stands; positional strays then fail closed
-    // per row below.
+    // headerless data whose label happens to read "condition". Header
+    // detection never peeks at later rows (so rows past BATCH_LIMITS.maxRows
+    // can never alter earlier rows); instead, any row that strands a
+    // non-clean condition token in an unmapped cell fails closed below.
     const namedConditionIndex = headerColumns.indexOf("condition", 4);
-    const dataUsesPositionalCondition = namedConditionIndex >= 0 && records.slice(1).some(
-      (record) => VALID_CONDITIONS.includes(String(record.cells[3] ?? "").trim().toLowerCase())
-        && sparseEmptyCell(record.cells[namedConditionIndex])
-    );
-    const dataUsesNamedCondition = namedConditionIndex >= 0 && records.slice(1).some(
-      (record) => !sparseEmptyCell(record.cells[namedConditionIndex])
-    );
-    const hasConditionData = (namedConditionIndex < 0 || (dataUsesPositionalCondition && !dataUsesNamedCondition))
+    const hasConditionData = namedConditionIndex < 0
       && VALID_CONDITIONS.includes(String(records[0].cells[3] ?? "").trim().toLowerCase())
       && sparseEmptyCell(records[0].cells[1])
       && sparseEmptyCell(records[0].cells[2]);
@@ -783,18 +772,21 @@ export function parseBatchCsv(text) {
       const column = columns[index];
       if (column) {
         row[column] = cell;
-      } else if (droppedCondition === null
-        && VALID_CONDITIONS.includes(String(cell ?? "").trim().toLowerCase())) {
-        droppedCondition = { value: String(cell).trim(), column: index + 1 };
+      } else if (droppedCondition === null) {
+        const normalizedCell = String(cell ?? "").trim().toLowerCase();
+        if (VALID_CONDITIONS.includes(normalizedCell) && normalizedCell !== "clean") {
+          droppedCondition = { value: String(cell).trim(), column: index + 1 };
+        }
       }
     });
-    // A recognized condition word that lands in a cell the column mapping
-    // cannot reach (an unrecognized header cell or a cell past the known
-    // columns) is never silently discarded: when the mapped condition
-    // holds no recognized condition word (empty, an export placeholder,
-    // or a value that is not a condition) the row's real condition is
-    // unknown, so the row is flagged and inspectBatch fails it closed
-    // instead of reporting a verdict.
+    // A non-clean condition word (greasy, liquid-full, broken) that lands in
+    // a cell the column mapping cannot reach (an unrecognized header cell or
+    // a cell past the known columns) is never silently discarded: when the
+    // mapped condition holds no recognized condition word (empty, an export
+    // placeholder, or a value that is not a condition) the row's real
+    // condition is unknown, so the row is flagged and inspectBatch fails it
+    // closed instead of reporting a verdict. Default "clean" is benign when
+    // omitted because an empty condition already defaults to clean.
     if (droppedCondition !== null
       && !VALID_CONDITIONS.includes(String(row.condition ?? "").trim().toLowerCase())) {
       row.droppedCondition = droppedCondition;
