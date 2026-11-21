@@ -18,6 +18,7 @@ import {
   assessEvidence,
   normalizeMaterialToken,
   parseResinCode,
+  VALID_CONDITIONS,
   CITY_IDS
 } from "./bincheck-validate.js";
 
@@ -407,6 +408,9 @@ const HEADER_ALIASES = {
   state: "condition"
 };
 
+/* Spreadsheet exports write these into empty cells; none is a plausible column name. */
+const SPARSE_EMPTY_TOKENS = new Set(["", "-", "--", "n/a", "na", "n.a.", "null", "none", "0", ".", "\u2013", "\u2014"]);
+
 export const SAMPLE_BATCH_CSV = [
   "label,barcode,material,resin,condition",
   "Spring water bottle,041220576463,,,clean",
@@ -652,14 +656,56 @@ export function parseBatchCsv(text) {
     const firstCells = records[0].cells.map((cell) => cell.toLowerCase().replace(/[^a-z0-9]/g, ""));
     const headerColumns = firstCells.map((cell) => Object.hasOwn(HEADER_ALIASES, cell) ? HEADER_ALIASES[cell] : null);
     const hasIdentifierColumn = headerColumns.some((column) => column === "barcode" || column === "material" || column === "resin");
+    const namedColumns = headerColumns.filter((column) => column !== null);
+    const namedColumnCount = namedColumns.length;
+    // A first cell that is itself a column name plus a duplicated
+    // canonical column is a malformed header, not data: fail closed on
+    // it so the duplicate check below can reject the file. Data rows
+    // keep the exemption because their first cell is a value, never an
+    // alias ("041220576463,,,clean,barcode,upc" stays data).
+    const firstCellIsName = headerColumns[0] !== null;
+    const hasDuplicateColumn = new Set(namedColumns).size < namedColumnCount;
+    let lastNamedIndex = -1;
+    headerColumns.forEach((column, index) => {
+      if (column !== null) lastNamedIndex = index;
+    });
     const hasBarcodeData = records[0].cells.some((cell) => /^\d{8,14}$/.test(cell.replace(/[\s-]/g, "")));
     const hasMaterialData = normalizeMaterialToken(records[0].cells[1]) !== null;
     const hasResinData = parseResinCode(records[0].cells[2]).valid;
-    if (hasIdentifierColumn && !hasBarcodeData && !hasMaterialData && !hasResinData) {
+    // A condition word in the fourth cell counts as positional evidence
+    // only in a sparse row: the two positional slots before it must be
+    // empty or hold export placeholders ("-", "0", "n/a") that no real
+    // column would be named. With a word filled in cells 1 or 2 the row
+    // is a header whose fourth column is literally named like a
+    // condition ("upc,qty,notes,clean"), while "upc,,,clean,x" and
+    // "upc,-,-,clean,x" are headerless rows whose cells happen to hold
+    // header words - and reading them as headers would silently drop
+    // every later row's condition cell into unnamed columns.
+    const sparseEmptyCell = (cell) => SPARSE_EMPTY_TOKENS.has(String(cell ?? "").trim().toLowerCase());
+    const hasConditionData = VALID_CONDITIONS.includes(String(records[0].cells[3] ?? "").trim().toLowerCase())
+      && sparseEmptyCell(records[0].cells[1])
+      && sparseEmptyCell(records[0].cells[2]);
+    // Data evidence sitting among the names (before the last one) can
+    // never be an extra unknown column: "041220576463,,,clean,Item,upc"
+    // and "upc,resin-1-pet,,clean,material" are headerless data rows
+    // whose cells happen to hold header words. Only cells after the
+    // last name are extra column-name slots, so a numeric, resin-like
+    // or UPC-looking extra header cell ("material,label,1") never
+    // downgrades a named header row into a data row.
+    const dataBeforeNames = namedColumnCount >= 2 && (
+      records[0].cells.slice(0, lastNamedIndex).some((cell) => /^\d{8,14}$/.test(cell.replace(/[\s-]/g, "")))
+      || (lastNamedIndex > 1 && hasMaterialData)
+      || (lastNamedIndex > 2 && hasResinData)
+      || hasConditionData
+    );
+    const looksLikeData = (hasBarcodeData || hasMaterialData || hasResinData || hasConditionData)
+      && !(firstCellIsName && hasDuplicateColumn)
+      && (namedColumnCount < 2 || (hasMaterialData && hasResinData) || dataBeforeNames);
+    if (hasIdentifierColumn && !looksLikeData) {
       hasHeader = true;
       columns = headerColumns;
       records[0].cells.forEach((cell, index) => {
-        if (!columns[index]) {
+        if (!columns[index] && cell.trim() !== "") {
           errors.push(csvError(records[0].line, "UNKNOWN_COLUMN", `Column "${cell.slice(0, 30)}" is not recognized and was ignored.`));
         }
       });

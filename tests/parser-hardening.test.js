@@ -508,6 +508,173 @@ test("batch: duplicate canonical headers are rejected naming both columns", () =
   assert.ok(!mixed.errors.some((entry) => entry.code === "DUPLICATE_COLUMN"));
 });
 
+test("batch: an extra unrecognized column never downgrades a named header into data", () => {
+  // The unknown header "1" parses as a valid resin code, which must not
+  // turn the named header row into a data row.
+  for (const extra of ["1", "2", "6", "2026", "001", "041220576463", "#3", "resin-1-pet", ""]) {
+    const text = `material,label,${extra}\nresin-6-ps-foam,resin-1-pet,`;
+    for (const parsed of [parseBatchCsv(text), parseBatchBytes(enc.encode(text))]) {
+      assert.equal(parsed.hasHeader, true, JSON.stringify(extra));
+      assert.deepEqual(parsed.columns, ["material", "label", null], JSON.stringify(extra));
+      assert.equal(parsed.rows.length, 1, JSON.stringify(extra));
+    }
+    const result = runBatchFromCsv(text);
+    assert.equal(result.rows[0].cities["Riverside-tx"].stream, "SPECIAL_DROPOFF", JSON.stringify(extra));
+    assert.equal(result.rows[0].cities["houston-tx"].stream, "TRASH_CART", JSON.stringify(extra));
+  }
+
+  // UTF-16 upload paths reach the identical verdict.
+  for (const bom of ["le", "be"]) {
+    const utf16 = runBatchFromBytes(utf16Bytes("material,label,1\nresin-6-ps-foam,resin-1-pet,", bom === "le", bom));
+    assert.equal(utf16.parse.hasHeader, true, bom);
+    assert.equal(utf16.rows[0].cities["Riverside-tx"].stream, "SPECIAL_DROPOFF", bom);
+    assert.equal(utf16.rows[0].cities["houston-tx"].stream, "TRASH_CART", bom);
+  }
+
+  // A full headerless-shaped row stays data even when two cells are header words.
+  const stray = parseBatchCsv("041220576463,resin-1-pet,1,clean,material,label\n");
+  assert.equal(stray.hasHeader, false, "both fixed headerless data slots filled beats two alias words");
+  assert.equal(stray.rows[0].label, "material");
+  // And a lone recognized name still yields to data evidence.
+  assert.equal(parseBatchCsv(",resin-1-pet,1,clean,barcode\n").hasHeader, false);
+  assert.equal(parseBatchCsv("041220576463,,,,barcode\n").hasHeader, false);
+  assert.equal(parseBatchCsv(",,,clean,barcode\n041220576463,,,clean,bottle\n").hasHeader, false);
+
+  // Headerless rows whose free-text cells hold header words stay data:
+  // the evidence sits before the first recognized name.
+  for (const text of [
+    "041220576463,,,clean,Item,upc\n041220948321,,,clean,Milk jug,upc\n",
+    "041220576463,,,clean,bottle,upc,resin\n041220948321,,,clean,milk,upc\n",
+    "041220576463,resin-1-pet,,clean,upc,material\n041220948321,resin-2-hdpe,,clean,milk,upc\n",
+    "041220576463,,1,state,barcode\n041220948321,,2,clean,milk\n",
+    "041220576463,resin-1-pet,resin,clean,upc\n041220948321,resin-2-hdpe,2,clean,milk\n",
+    "041220576463,,,clean,barcode,upc\n041220948321,,,clean,milk,upc\n",
+    "041220576463,,,clean,u.p.c,ean\n041220948321,,,clean,milk,upc\n"
+  ]) {
+    for (const parsed of [parseBatchCsv(text), parseBatchBytes(enc.encode(text))]) {
+      assert.equal(parsed.hasHeader, false, JSON.stringify(text));
+      assert.equal(parsed.rows.length, 2, JSON.stringify(text));
+      assert.equal(parsed.rows[0].barcode, "041220576463", JSON.stringify(text));
+    }
+  }
+  const singleStray = parseBatchCsv("041220576463,resin-1-pet,,clean,upc,material\n");
+  assert.equal(singleStray.hasHeader, false);
+  assert.equal(singleStray.rows.length, 1);
+
+  // Empty header cells are ignored silently instead of warning on "".
+  const trailing = parseBatchCsv("material,label,\nresin-1-pet,Bottle,\n");
+  assert.equal(trailing.hasHeader, true);
+  assert.deepEqual(trailing.columns, ["material", "label", null]);
+  assert.ok(!trailing.errors.some((entry) => entry.code === "UNKNOWN_COLUMN"), "an empty header cell is not an unknown column");
+
+  // A column literally named after a condition word is still a named
+  // header column, not positional data evidence.
+  for (const word of ["clean", "greasy", "liquid-full", "broken"]) {
+    const header = parseBatchCsv(`upc,qty,notes,${word}\n041220576463,2,fragile,yes\n`);
+    assert.equal(header.hasHeader, true, `a fourth column named ${word} must not downgrade the header`);
+    const rows = runBatchFromCsv(`upc,qty,notes,${word}\n041220576463,2,fragile,yes\n`);
+    assert.equal(rows.rows.length, 1);
+    assert.equal(rows.rows[0].status, "OK", `the barcode row under a ${word} header still evaluates`);
+  }
+  const lateNames = parseBatchCsv("a,b,c,clean,upc,material\n041220576463,resin-1-pet,,clean,bottle\n");
+  assert.equal(lateNames.hasHeader, true, "names after a filled leading block are a header, not a sparse row");
+
+  // But a sparse first record whose only positional signal is the
+  // condition slot stays data: eating it would misalign the real rows.
+  const sparse = parseBatchCsv(",,,clean,barcode\n041220576463,,,clean,bottle\n");
+  assert.equal(sparse.hasHeader, false);
+  const sparseRun = runBatchFromCsv(",,,clean,barcode\n041220576463,,,clean,bottle\n");
+  assert.ok(sparseRun.rows.some((row) => row.status === "OK"), "the real barcode row must survive the sparse first record");
+
+  // A name in a sparse row where the only positional signal is the
+  // condition slot is a free-text value, not a column name. Reading it
+  // as a header would silently drop every later row's condition cell
+  // into unnamed columns and report the wrong verdict as OK.
+  for (const text of [
+    "upc,,,clean,x\n041220576463,,,liquid-full,bottle\n041220576463,glass-jar-bottle,,broken,jar\n",
+    "upc,,,clean,material\n041220576463,,,liquid-full,glass-bottle\n",
+    "x,,,clean,upc\n041220576463,,,clean,bottle\n",
+    "x,,,clean,upc,material\n041220576463,,,clean,bottle\n",
+    "upc,,,clean,item\n041220576463,,,clean,bottle\n"
+  ]) {
+    const parsed = parseBatchCsv(text);
+    assert.equal(parsed.hasHeader, false, JSON.stringify(text));
+  }
+  const sparseVerdicts = runBatchFromCsv("upc,,,clean,x\n041220576463,,,liquid-full,bottle\n041220576463,glass-jar-bottle,,broken,jar\n");
+  assert.equal(sparseVerdicts.rows[0].status, "ERROR", "the malformed first row fails loudly");
+  assert.equal(sparseVerdicts.rows[1].cities["Riverside-tx"].stream, "SPLIT_DISPOSAL", "liquid-full condition survives positional parsing");
+  assert.equal(sparseVerdicts.rows[2].cities["houston-tx"].stream, "TRASH_CART", "broken glass stays out of the recycle cart");
+
+  // Cells before the condition slot that are filled keep the row a
+  // header: "x,,,clean" is sparse, ",x,,clean" is a named file.
+  assert.equal(parseBatchCsv(",x,,clean,upc\n041220576463,,,clean,bottle\n").hasHeader, true);
+  assert.equal(parseBatchCsv(",,x,clean,upc\n041220576463,,,clean,bottle\n").hasHeader, true);
+
+  // Positional evidence among the names is still data evidence: a
+  // material id or resin digit in its slot, or a barcode-shape cell
+  // before the last name, means the row cannot be a pure header. The
+  // header reading would silently drop every later row's condition
+  // cell into unnamed columns and report wrong verdicts as OK.
+  for (const text of [
+    "upc,resin-1-pet,,clean,material\n041220576463,,,liquid-full,\n041220948321,,,clean,\n",
+    "upc,resin-1-pet,,notes,item\n041220576463,,,clean,bottle\n",
+    "upc,,3,,clean,material\n041220576463,,,liquid-full,\n041220948321,,,clean,\n",
+    "upc,,1,clean,material\n041220576463,,,liquid-full,bottle\n",
+    "x,upc,3,,,material\n041220576463,,,clean,bottle\n",
+    "x,upc,y,041220576463,material\nzzz,041220576463,,,resin-1-pet\n",
+    "notes,upc,041220576463,material\n041220576463,,,clean,bottle\n"
+  ]) {
+    assert.equal(parseBatchCsv(text).hasHeader, false, JSON.stringify(text));
+  }
+  const materialEvidence = runBatchFromCsv("upc,resin-1-pet,,clean,material\n041220576463,,,liquid-full,\n041220948321,,,clean,\n");
+  assert.equal(materialEvidence.rows[1].cities["Riverside-tx"].stream, "SPLIT_DISPOSAL", "liquid-full survives when the first row is data");
+
+  // Export placeholders in the sparse slots are not column names: "-",
+  // "0", "n/a" and "null" still leave the condition word as the only
+  // positional signal.
+  for (const text of [
+    "upc,-,-,clean,x\n041220576463,,,liquid-full,bottle\n",
+    "upc,0,0,clean,x\n041220576463,,,liquid-full,bottle\n",
+    "upc,-,,clean,x\n041220576463,,,clean,bottle\n",
+    "upc,,-,clean,x\n041220576463,,,clean,bottle\n",
+    "upc,n/a,n/a,clean,item\n041220576463,,,clean,bottle\n",
+    "upc,NULL,NULL,clean,x\n041220576463,,,clean,bottle\n",
+    "barcode,0,0,broken,label\n041220576463,,,clean,bottle\n",
+    "upc,-,-,clean\n041220576463,,,clean,bottle\n"
+  ]) {
+    assert.equal(parseBatchCsv(text).hasHeader, false, JSON.stringify(text));
+  }
+
+  // Whitespace-only header cells warn like empty cells: not at all.
+  const blankHeader = parseBatchCsv('material,label," "\nresin-1-pet,Bottle,\n');
+  assert.equal(blankHeader.hasHeader, true);
+  assert.ok(!blankHeader.errors.some((entry) => entry.code === "UNKNOWN_COLUMN"));
+
+  // A leading column name plus a duplicated canonical column is a
+  // malformed header and fails closed on the duplicate check instead
+  // of guessing positional columns around it.
+  for (const first of [
+    "upc,resin-1-pet,,clean,upc,material",
+    "upc,,,clean,upc",
+    "upc,-,-,clean,upc",
+    "upc,,3,,clean,upc",
+    "upc,x,041220576463,clean,upc",
+    "barcode,resin-2-hdpe,,clean,barcode",
+    "material,,,clean,material"
+  ]) {
+    const parsed = parseBatchCsv(`${first}\n041220576463,,,clean,bottle\n`);
+    assert.equal(parsed.hasHeader, true, JSON.stringify(first));
+    assert.ok(parsed.errors.some((entry) => entry.code === "DUPLICATE_COLUMN"), JSON.stringify(first));
+  }
+  // The exemption is only for rows that start with a data value.
+  for (const first of [
+    "041220576463,,,clean,barcode,upc",
+    "041220576463,,,clean,upc,upc"
+  ]) {
+    assert.equal(parseBatchCsv(`${first}\n041220948321,,,clean,jar\n`).hasHeader, false, JSON.stringify(first));
+  }
+});
+
 test("batch: a malformed first record fails closed instead of guessing positional columns", () => {
   const text = '"material"junk,label\nresin-6-ps-foam,resin-1-pet\n';
   const parsed = parseBatchCsv(text);
