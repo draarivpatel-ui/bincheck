@@ -686,9 +686,23 @@ export function parseBatchCsv(text) {
     // declares its own layout: the condition word in that slot is an
     // unnamed header cell and real condition values land in the named
     // column, so "barcode,,,clean,condition" is a sparse header, not
-    // headerless data whose label happens to read "condition".
-    const conditionNamedAfterSlot = headerColumns.slice(4).includes("condition");
-    const hasConditionData = !conditionNamedAfterSlot
+    // headerless data whose label happens to read "condition". That
+    // reading holds only while the rest of the file agrees with it: a
+    // later record that parks a recognized condition in the positional
+    // fourth slot while leaving the named column empty is a positional
+    // data row, and trusting the header would silently discard its
+    // condition. Once any record fills the named column the declaration
+    // is real and the header stands; positional strays then fail closed
+    // per row below.
+    const namedConditionIndex = headerColumns.indexOf("condition", 4);
+    const dataUsesPositionalCondition = namedConditionIndex >= 0 && records.slice(1).some(
+      (record) => VALID_CONDITIONS.includes(String(record.cells[3] ?? "").trim().toLowerCase())
+        && sparseEmptyCell(record.cells[namedConditionIndex])
+    );
+    const dataUsesNamedCondition = namedConditionIndex >= 0 && records.slice(1).some(
+      (record) => !sparseEmptyCell(record.cells[namedConditionIndex])
+    );
+    const hasConditionData = (namedConditionIndex < 0 || (dataUsesPositionalCondition && !dataUsesNamedCondition))
       && VALID_CONDITIONS.includes(String(records[0].cells[3] ?? "").trim().toLowerCase())
       && sparseEmptyCell(records[0].cells[1])
       && sparseEmptyCell(records[0].cells[2]);
@@ -764,12 +778,27 @@ export function parseBatchCsv(text) {
         )
       );
     }
+    let droppedCondition = null;
     record.cells.forEach((cell, index) => {
       const column = columns[index];
       if (column) {
         row[column] = cell;
+      } else if (droppedCondition === null
+        && VALID_CONDITIONS.includes(String(cell ?? "").trim().toLowerCase())) {
+        droppedCondition = { value: String(cell).trim(), column: index + 1 };
       }
     });
+    // A recognized condition word that lands in a cell the column mapping
+    // cannot reach (an unrecognized header cell or a cell past the known
+    // columns) is never silently discarded: when the mapped condition
+    // holds no recognized condition word (empty, an export placeholder,
+    // or a value that is not a condition) the row's real condition is
+    // unknown, so the row is flagged and inspectBatch fails it closed
+    // instead of reporting a verdict.
+    if (droppedCondition !== null
+      && !VALID_CONDITIONS.includes(String(row.condition ?? "").trim().toLowerCase())) {
+      row.droppedCondition = droppedCondition;
+    }
     return row;
   });
 
@@ -855,6 +884,16 @@ export function inspectBatch(rows = []) {
       errorIssues = issues.filter((entry) => entry.code === "BARCODE_INVALID").map((entry) => ({ ...entry, severity: "error" }));
     } else if (!identified) {
       errorIssues = [{ code: "NO_ITEM_IDENTIFIED", severity: "error", field: "item", message: "Barcode is not in the demo catalog and no material or resin code was given." }];
+    }
+
+    if (row.droppedCondition) {
+      const dropped = row.droppedCondition;
+      errorIssues.unshift({
+        code: "UNMAPPED_CONDITION",
+        severity: "error",
+        field: "condition",
+        message: `The value "${String(dropped.value).slice(0, 40)}" in column ${dropped.column} looks like a condition, but that column has no recognized name, so it was not read and the row's real condition is unknown. Name that column "condition" or move the value into the condition column and run again.`
+      });
     }
 
     if (errorIssues.length > 0) {

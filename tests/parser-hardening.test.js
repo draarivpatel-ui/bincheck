@@ -719,6 +719,84 @@ test("batch: a sparse header that names the condition column after blank cells i
   assert.equal(sparse.rows[1].label, "bottle");
 });
 
+test("batch: positional condition cells outvote a sparse header that names condition late", () => {
+  // The sparse header reading of "barcode,,,clean,condition" is only safe
+  // while data rows actually use the named column. A data row that parks
+  // its condition in the positional fourth slot proves the file is
+  // headerless: trusting the header would silently drop "liquid-full" and
+  // report the bottle as a clean recycle-cart item.
+  const repro = "barcode,,,clean,condition\n041220576463,,,liquid-full,\n";
+  const parsed = parseBatchCsv(repro);
+  assert.equal(parsed.hasHeader, false);
+  assert.equal(parsed.rows.length, 2);
+  assert.equal(parsed.rows[1].condition, "liquid-full");
+
+  const result = runBatchFromCsv(repro);
+  assert.equal(result.rows[0].status, "ERROR", "the first row is data and fails loudly");
+  assert.equal(result.rows[1].cities["Riverside-tx"].stream, "SPLIT_DISPOSAL");
+  assert.equal(result.rows[1].cities["houston-tx"].stream, "SPLIT_DISPOSAL");
+
+  // Every positional condition word counts, and a named cell holding only
+  // an export placeholder is still empty. The condition must reach the
+  // row's condition field instead of vanishing into an unnamed column.
+  for (const [text, condition] of [
+    ["barcode,,,clean,condition\n041220576463,,,greasy,\n", "greasy"],
+    ["barcode,,,clean,condition\n041220576463,,,broken,\n041220948321,,,clean,\n", "broken"],
+    ["barcode,,,clean,condition\n041220576463,,,liquid-full,-\n", "liquid-full"],
+    ["barcode,,,clean,state\n041220576463,,,liquid-full,\n", "liquid-full"]
+  ]) {
+    assert.equal(parseBatchCsv(text).hasHeader, false, JSON.stringify(text));
+    const run = runBatchFromCsv(text);
+    assert.equal(run.rows[1].input.condition, condition, JSON.stringify(text));
+    assert.notEqual(run.rows[1].status, "ERROR", JSON.stringify(text));
+  }
+});
+
+test("batch: a named condition column in use keeps the sparse header and stray cells fail closed", () => {
+  // Once a data row fills the declared condition column the file really
+  // is header-shaped; rows that still park a condition in an unnamed cell
+  // fail closed instead of silently losing it.
+  const mixed = runBatchFromCsv("barcode,,,clean,condition\n041220576463,,,liquid-full,\n041220948321,,,,clean\n");
+  assert.equal(mixed.parse.hasHeader, true);
+  assert.equal(mixed.rows[0].status, "ERROR");
+  assert.equal(mixed.rows[0].issues[0].code, "UNMAPPED_CONDITION");
+  assert.match(mixed.rows[0].issues[0].message, /liquid-full/);
+  assert.equal(mixed.rows[1].status, "OK");
+
+  // The same guard protects rows under any header with unrecognized
+  // columns: a condition word in an ignored cell while the mapped
+  // condition is empty can never earn a verdict.
+  for (const text of [
+    "barcode,qty,,x,condition\n041220576463,2,liquid-full,fragile,\n",
+    "barcode,,x,,clean,condition\n041220576463,,liquid-full,,,\n",
+    "upc,notes,clean\n041220576463,keep dry,greasy\n",
+    // A mapped condition holding only an export placeholder or a
+    // non-condition value is no condition at all: the stray still wins.
+    "barcode,qty,,x,condition\n041220576463,2,liquid-full,fragile,-\n",
+    "barcode,qty,,x,condition\n041220576463,2,liquid-full,fragile,zzz\n"
+  ]) {
+    const run = runBatchFromCsv(text);
+    assert.equal(run.parse.hasHeader, true, JSON.stringify(text));
+    assert.equal(run.rows[0].status, "ERROR", JSON.stringify(text));
+    assert.equal(run.rows[0].issues[0].code, "UNMAPPED_CONDITION", JSON.stringify(text));
+    assert.equal(run.rows[0].cities, null, "no verdict from a dropped condition");
+  }
+
+  // A headerless row works the same way: a condition word stranded past
+  // the five known columns is an error, not a quiet RECYCLE_CART.
+  const extra = runBatchFromCsv("041220576463,,,,,liquid-full\n");
+  assert.equal(extra.parse.hasHeader, false);
+  assert.ok(extra.parse.errors.some((entry) => entry.code === "EXTRA_CELLS"));
+  assert.equal(extra.rows[0].status, "ERROR");
+  assert.equal(extra.rows[0].issues[0].code, "UNMAPPED_CONDITION");
+
+  // When the mapped condition is filled the stray cell stays a warning,
+  // not an error: the named value drives the verdict.
+  const filled = runBatchFromCsv("barcode,qty,,x,condition\n041220576463,2,liquid-full,fragile,greasy\n");
+  assert.equal(filled.rows[0].status, "OK");
+  assert.equal(filled.rows[0].input.condition, "greasy");
+});
+
 test("batch: a malformed first record fails closed instead of guessing positional columns", () => {
   const text = '"material"junk,label\nresin-6-ps-foam,resin-1-pet\n';
   const parsed = parseBatchCsv(text);
