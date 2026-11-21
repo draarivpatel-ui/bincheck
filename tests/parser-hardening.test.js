@@ -752,9 +752,10 @@ test("batch: sparse header stays row-1 pure, preserves named material, and fails
 
   // Named material after a sparse condition header is preserved even when
   // the unmapped "clean" cell holds the neutral default word "clean".
+  // (Status is WARN because the PET bottle barcode conflicts with PS foam.)
   const foam = runBatchFromCsv("barcode,,,clean,condition,material\n041220576463,,,clean,,resin-6-ps-foam\n");
   assert.equal(foam.parse.hasHeader, true);
-  assert.equal(foam.rows[0].status, "OK");
+  assert.equal(foam.rows[0].status, "WARN");
   assert.equal(foam.rows[0].cities["Riverside-tx"].stream, "SPECIAL_DROPOFF");
   assert.equal(foam.rows[0].cities["houston-tx"].stream, "TRASH_CART");
 
