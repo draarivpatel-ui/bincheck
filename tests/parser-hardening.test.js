@@ -759,9 +759,9 @@ test("batch: sparse header stays row-1 pure, preserves named material, and fails
   assert.equal(foam.rows[0].cities["Riverside-tx"].stream, "SPECIAL_DROPOFF");
   assert.equal(foam.rows[0].cities["houston-tx"].stream, "TRASH_CART");
 
-  // Valid CSV rows past BATCH_LIMITS.maxRows never alter header detection or
-  // any earlier row's verdict (whole-file binary/encoding guards still apply
-  // at the file level before CSV parsing).
+  // For inputs that pass all file-level checks (byte limit, binary sniffing,
+  // and text encoding), valid CSV rows past BATCH_LIMITS.maxRows never alter
+  // header detection or any earlier row's verdict.
   const baseBatch = "barcode,,,clean,condition\n041220576463,,,liquid-full,\n" + "041220948321,,,,\n".repeat(499);
   const withOverflowRow = baseBatch + "041220948321,,,,clean\n";
   const rBase = runBatchFromCsv(baseBatch);
