@@ -18,9 +18,29 @@ function boot(options = {}) {
   const app = createApp({
     document: dom.document,
     window: dom.window,
-    deps: { download: (name, mime, text) => downloads.push({ name, mime, text }), now: (() => { let t = 0; return () => (t += 0.1); })() }
+    deps: {
+      download: (name, mime, text) => downloads.push({ name, mime, text }),
+      now: (() => { let t = 0; return () => (t += 0.1); })(),
+      storage: options.storage
+    }
   });
   return { dom, app, downloads, el: (id) => dom.byId.get(id) };
+}
+
+function memoryStorage(seed = {}) {
+  const data = { ...seed };
+  return {
+    data,
+    getItem(key) {
+      return Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null;
+    },
+    setItem(key, value) {
+      data[key] = String(value);
+    },
+    removeItem(key) {
+      delete data[key];
+    }
+  };
 }
 
 const button = (dom, attr, value) => dom.all.find((el) => el.getAttribute(attr) === value);
@@ -422,6 +442,72 @@ test("ui: ? opens the shortcut dialog, other shortcuts pause while it is open, E
   assert.equal(el("shortcut-dialog").open, false);
   assert.match(el("shortcut-list").innerHTML, /<kbd>\?<\/kbd>/);
   app.destroy();
+});
+
+test("ui: the single-key shortcut toggle disables letters, keeps Escape and Ctrl+Enter, and persists", () => {
+  const storage = memoryStorage();
+  const { dom, el, app, downloads } = boot({ storage });
+  assert.equal(app.getState().singleKeyShortcuts, true, "shortcuts start enabled");
+  assert.equal(el("shortcuts-toggle").checked, true);
+
+  const headerToggle = el("shortcuts-toggle");
+  headerToggle.checked = false;
+  dom.change(headerToggle);
+  assert.equal(app.getState().singleKeyShortcuts, false);
+  assert.equal(storage.data["bincheck:single-key-shortcuts"], "off", "the choice is persisted");
+  assert.equal(el("export-report-json-btn").getAttribute("aria-keyshortcuts"), null, "single-key shortcut withdrawn from AT");
+  assert.equal(el("add-to-batch-btn").getAttribute("aria-keyshortcuts"), null);
+  assert.equal(el("csv-run-btn").getAttribute("aria-keyshortcuts"), "Control+Enter", "modifier combo stays advertised");
+  assert.equal(el("shortcuts-dialog-toggle").checked, false, "both toggles stay in sync");
+
+  dom.key("d");
+  assert.equal(downloads.length, 0, "D no longer downloads the report");
+  dom.key("h");
+  assert.equal(app.getState().cityMode, "Riverside-tx", "H no longer switches city");
+  dom.key("?");
+  assert.equal(el("shortcut-dialog").open, false, "? no longer opens the dialog");
+
+  // The dialog stays reachable by click while disabled, and Escape still closes it.
+  dom.click(button(dom, "data-action", "open-help"));
+  assert.equal(el("shortcut-dialog").open, true);
+  dom.key("Escape");
+  assert.equal(el("shortcut-dialog").open, false);
+
+  // Ctrl+Enter inside the CSV box still runs the inspection.
+  dom.input(el("csv-input"), "label,barcode\nBottle,041220576463\n");
+  const event = dom.key("Enter", el("csv-input"), { ctrlKey: true });
+  assert.equal(event.defaultPrevented, true);
+  assert.match(el("status-live").textContent, /Inspected 1 rows/);
+
+  // The dialog toggle re-enables, restores aria-keyshortcuts and persists "on".
+  const dialogToggle = el("shortcuts-dialog-toggle");
+  dialogToggle.checked = true;
+  dom.change(dialogToggle);
+  assert.equal(app.getState().singleKeyShortcuts, true);
+  assert.equal(storage.data["bincheck:single-key-shortcuts"], "on");
+  assert.equal(el("export-report-json-btn").getAttribute("aria-keyshortcuts"), "d");
+  assert.equal(el("shortcuts-toggle").checked, true);
+  dom.key("d");
+  assert.equal(downloads.length, 1, "D works again once re-enabled");
+  app.destroy();
+});
+
+test("ui: a stored off preference disables shortcuts on the next session", () => {
+  const storage = memoryStorage({ "bincheck:single-key-shortcuts": "off" });
+  const { dom, el, app, downloads } = boot({ storage });
+  assert.equal(app.getState().singleKeyShortcuts, false);
+  assert.equal(el("shortcuts-toggle").checked, false);
+  assert.equal(el("export-report-json-btn").getAttribute("aria-keyshortcuts"), null);
+  dom.key("d");
+  assert.equal(downloads.length, 0);
+  dom.key("p");
+  assert.equal(dom.window.printed, 0, "P no longer prints");
+  app.destroy();
+
+  const fresh = memoryStorage();
+  const enabled = boot({ storage: fresh });
+  assert.equal(enabled.app.getState().singleKeyShortcuts, true, "no stored value means enabled");
+  enabled.app.destroy();
 });
 
 test("ui: share hash is written to the address bar, hydrated on boot, and copied on request", async () => {

@@ -252,6 +252,26 @@ test("shortcuts: every listed key resolves, modifiers and typing suppress them, 
   assert.equal(new Set(keys).size, keys.length, "no duplicate shortcut keys");
 });
 
+test("shortcuts: the single-key toggle suppresses printable keys but never Escape", () => {
+  for (const entry of SHORTCUTS) {
+    if (entry.key === "Escape") continue;
+    assert.equal(resolveShortcut({ key: entry.key, targetTag: "BODY" }, false), null, `${entry.key} disabled`);
+  }
+  assert.equal(resolveShortcut({ key: "Escape", targetTag: "BODY" }, false), "close-help", "Escape always resolves");
+  assert.equal(resolveShortcut({ key: "Escape", targetTag: "INPUT" }, false), "close-help");
+  assert.equal(resolveShortcut({ key: "d", targetTag: "BODY" }, true), "download-report", "enabled default unchanged");
+
+  const off = reduce(createInitialState(), { type: "SET_SINGLE_KEY_SHORTCUTS", enabled: false });
+  assert.equal(off.singleKeyShortcuts, false);
+  assert.match(off.notice, /off/i);
+  const again = reduce(off, { type: "SET_SINGLE_KEY_SHORTCUTS", enabled: false });
+  assert.equal(again, off, "a redundant toggle returns the same state");
+  const on = reduce(off, { type: "SET_SINGLE_KEY_SHORTCUTS", enabled: true });
+  assert.equal(on.singleKeyShortcuts, true);
+  assert.match(on.notice, /on/i);
+  assert.equal(createInitialState().singleKeyShortcuts, true, "defaults on");
+});
+
 /* ---------------- Share links ---------------- */
 
 test("share hash: encode then decode round-trips every field", () => {

@@ -48,6 +48,20 @@ function utf16Bytes(text, littleEndian, bom) {
   return new Uint8Array(out);
 }
 
+/** A structurally complete minimal GIF: signature, screen descriptor, color table, blocks, trailer. */
+function gifBytes(version = "89a") {
+  return new Uint8Array([
+    ...enc.encode(`GIF${version}`),
+    0x01, 0x00, 0x01, 0x00, // 1x1 logical screen descriptor
+    0x80, 0x00, 0x00, // global color table flag set, background, aspect ratio
+    0x00, 0x00, 0x00, 0xff, 0xff, 0xff, // two-entry global color table
+    0x21, 0xf9, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, // graphic control extension
+    0x2c, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, // image descriptor
+    0x02, 0x02, 0x44, 0x01, 0x00, // image data sub-block
+    0x3b // trailer
+  ]);
+}
+
 const KNOWN_ISSUE_CODES = new Set([
   "INVALID_CITY", "BARCODE_INVALID", "UNKNOWN_MATERIAL", "INVALID_RESIN",
   "UNKNOWN_CONDITION", "HASH_TOO_LONG", "HASH_BAD_ENCODING", "HASH_TOO_COMPLEX"
@@ -59,8 +73,8 @@ test("bytes: every known container signature is refused by name at offset 0", ()
   const cases = [
     [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0], "PNG image"],
     [[0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0], "JPEG image"],
-    [[0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0], "GIF image"],
-    [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0, 0], "GIF image"],
+    [[...gifBytes("89a")], "GIF image"],
+    [[...gifBytes("87a")], "GIF image"],
     [[0x50, 0x4b, 0x03, 0x04, 0x14, 0, 0, 0], "ZIP archive"],
     [[0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37], "PDF document"],
     [[0x1f, 0x8b, 0x08, 0x00, 0, 0, 0, 0], "gzip-compressed file"],
@@ -95,6 +109,36 @@ test("bytes: a truncated signature shorter than the magic length is not a false 
   const pk = decodeBatchBytes(enc.encode("PK"));
   assert.equal(pk.ok, true, "the letters PK alone are text, not a ZIP header");
   assert.equal(pk.text, "PK");
+});
+
+test("bytes: a CSV that only starts with the letters GIF8 is text, never an image", () => {
+  const csv = "GIF8-column,material\nAnything,resin-1-pet\n";
+  const decoded = decodeBatchBytes(enc.encode(csv));
+  assert.equal(decoded.ok, true, "GIF8-prefixed text decodes as UTF-8");
+  assert.equal(decoded.encoding, "utf-8");
+  const result = runBatchFromBytes(enc.encode(csv));
+  assert.equal(result.totals.rows, 1, "the row is evaluated, not refused as an image");
+  assert.equal(result.rows[0].input.material, "resin-1-pet");
+});
+
+test("bytes: even a header literally named GIF89a stays text without GIF structure", () => {
+  for (const text of ["GIF89a,material\nAnything,resin-1-pet\n", "GIF87a", "GIF89a\nx\n"]) {
+    const decoded = decodeBatchBytes(enc.encode(text));
+    assert.equal(decoded.ok, true, `${JSON.stringify(text.slice(0, 20))} decodes as text`);
+  }
+  // Corrupted structure: signature is complete but the screen descriptor
+  // does not continue into a real GIF block, so text still wins.
+  const notGif = new Uint8Array([...enc.encode("GIF89a"), 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20]);
+  assert.equal(decodeBatchBytes(notGif).ok, true);
+});
+
+test("bytes: a structurally complete GIF is still refused by name", () => {
+  for (const version of ["89a", "87a"]) {
+    const decoded = decodeBatchBytes(gifBytes(version));
+    assert.equal(decoded.ok, false, version);
+    assert.equal(decoded.errors[0].code, "BINARY_INPUT");
+    assert.match(decoded.errors[0].message, /GIF image/);
+  }
 });
 
 test("bytes: empty, null and non-byte inputs all resolve to EMPTY_INPUT", () => {
@@ -358,6 +402,35 @@ test("csv edge: an oversized single field still parses inside the byte limit", (
   assert.equal(parsed.rows[0].barcode.length, 60000);
 });
 
+test("csv edge: characters after a closing quote reject the row instead of merging into it", () => {
+  const { records, errors, skippedRows } = parseCsv('label,material\n"Sample"junk,resin-1-pet\n');
+  assert.equal(records.length, 1, "only the clean header row survives");
+  assert.equal(skippedRows, 1);
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].code, "CSV_TRAILING_CHARS");
+  assert.match(errors[0].message, /junk/);
+
+  const parsed = parseBatchCsv('label,material\n"Sample"junk,resin-1-pet\n');
+  assert.equal(parsed.rows.length, 0, "the malformed row is skipped, not evaluated");
+  const result = runBatchFromCsv('label,material\n"Sample"junk,resin-1-pet\n');
+  assert.equal(result.rows.length, 0, "no row ever reports OK from corrupted input");
+  assert.ok(result.parse.errors.some((entry) => entry.code === "CSV_TRAILING_CHARS"));
+
+  // Whitespace padding after a closing quote stays legal and is not kept.
+  const padded = parseCsv('"a" ,b\n"x"\t,"y"\n"p", "q"');
+  assert.deepEqual(padded.errors, []);
+  assert.equal(padded.records.length, 3);
+  assert.deepEqual(padded.records[0].cells, ["a", "b"]);
+  assert.deepEqual(padded.records[2].cells, ["p", "q"]);
+
+  // Clean rows after a skipped one still parse, and only one error is logged per row.
+  const mixed = parseCsv('"bad"junk,1\n"good",2\n"alsogood",3');
+  assert.equal(mixed.records.length, 2);
+  assert.equal(mixed.records[0].cells[0], "good");
+  assert.equal(mixed.errors.length, 1);
+  assert.equal(mixed.skippedRows, 1);
+});
+
 /* ---------------- Header and row limits ---------------- */
 
 test("batch: non-string and whitespace-only inputs fail with EMPTY_INPUT, never a throw", () => {
@@ -396,6 +469,64 @@ test("batch: a header made only of label and condition columns is treated as dat
   const parsed = parseBatchCsv("label,condition\nx,clean\n");
   assert.equal(parsed.hasHeader, false, "no identifier column means no header");
   assert.equal(parsed.rows.length, 2);
+});
+
+test("batch: duplicate canonical headers are rejected naming both columns", () => {
+  const parsed = parseBatchCsv("material,category\nresin-6-ps-foam,resin-1-pet\n");
+  assert.equal(parsed.rows.length, 0, "a colliding header rejects the file instead of overwriting values");
+  const dup = parsed.errors.find((entry) => entry.code === "DUPLICATE_COLUMN");
+  assert.ok(dup, "a DUPLICATE_COLUMN error is reported");
+  assert.equal(dup.column, "material");
+  assert.deepEqual(dup.headers, ["material", "category"]);
+  assert.match(dup.message, /"material"/);
+  assert.match(dup.message, /"category"/);
+
+  const result = runBatchFromCsv("material,category\nresin-6-ps-foam,resin-1-pet\n");
+  assert.equal(result.rows.length, 0, "no row is evaluated from an ambiguous mapping");
+  assert.ok(result.parse.errors.some((entry) => entry.code === "DUPLICATE_COLUMN"));
+
+  // The single-column form of the same row proves the verdict the silent
+  // overwrite was hiding: PS foam, not PET, in both cities.
+  const single = runBatchFromCsv("material\nresin-6-ps-foam\n");
+  assert.equal(single.rows[0].cities["Riverside-tx"].stream, "SPECIAL_DROPOFF");
+  assert.equal(single.rows[0].cities["houston-tx"].stream, "TRASH_CART");
+
+  for (const text of [
+    "barcode,gtin\n041220576463,041220948321\n",
+    "Material,material_id\nresin-1-pet,resin-2-hdpe\n",
+    "resin,SPI\n1,2\n",
+    "barcode,material,name,item\n041220576463,resin-1-pet,Bottle,Can\n"
+  ]) {
+    const p = parseBatchCsv(text);
+    assert.equal(p.rows.length, 0, text);
+    assert.ok(p.errors.some((entry) => entry.code === "DUPLICATE_COLUMN"), text);
+  }
+
+  // Distinct columns with one unknown still parse with just the warning.
+  const mixed = parseBatchCsv("material,mystery\nresin-1-pet,x\n");
+  assert.equal(mixed.rows.length, 1);
+  assert.ok(!mixed.errors.some((entry) => entry.code === "DUPLICATE_COLUMN"));
+});
+
+test("batch: dropped rows are counted for truncation, malformed and unterminated input", () => {
+  const cut = parseBatchCsv("label,material\nBottle,resin-1-pet\n\"Broken");
+  assert.equal(cut.rows.length, 1);
+  assert.equal(cut.droppedRows, 1, "the unterminated record is counted as dropped");
+  assert.ok(cut.errors.some((entry) => entry.code === "CSV_UNTERMINATED_QUOTE"));
+
+  const over = parseBatchCsv(`barcode\n${Array.from({ length: BATCH_LIMITS.maxRows + 3 }, () => "041220576463").join("\n")}`);
+  assert.equal(over.truncated, true);
+  assert.equal(over.droppedRows, 3);
+
+  const malformed = parseBatchCsv('label,material\n"x"junk,resin-1-pet\nBottle,resin-1-pet\n"y"more,resin-2-hdpe\n');
+  assert.equal(malformed.rows.length, 1);
+  assert.equal(malformed.droppedRows, 2);
+
+  const rejected = parseBatchCsv("material,category\nresin-6-ps-foam,resin-1-pet\nresin-1-pet,resin-2-hdpe\n");
+  assert.equal(rejected.droppedRows, 2, "rejected data rows are counted too");
+
+  const clean = parseBatchCsv("label,material\nBottle,resin-1-pet\n");
+  assert.equal(clean.droppedRows, 0);
 });
 
 test("batch: extra cells past the known columns are dropped with a named error", () => {
@@ -601,7 +732,7 @@ test("batch invariants: seeded CSV fuzz never throws and keeps error codes known
   const rng = mulberry32(5150);
   const cells = ["041220576463", "resin-1-pet", "1", "clean", "x", "", ",", '"q"', "#tag", "3", "greasy"];
   const knownParseCodes = new Set([
-    "CSV_UNTERMINATED_QUOTE", "UNKNOWN_COLUMN", "ROW_LIMIT", "EXTRA_CELLS",
+    "CSV_UNTERMINATED_QUOTE", "CSV_TRAILING_CHARS", "UNKNOWN_COLUMN", "DUPLICATE_COLUMN", "ROW_LIMIT", "EXTRA_CELLS",
     "NO_DATA_ROWS", "UNUSUAL_CHARACTERS", "BINARY_LIKE_INPUT"
   ]);
   for (let i = 0; i < 120; i += 1) {

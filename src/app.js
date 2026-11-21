@@ -76,6 +76,7 @@ export const GUIDED_DEMOS = {
 };
 
 const NOTICE_MS = 6000;
+const SHORTCUTS_STORAGE_KEY = "bincheck:single-key-shortcuts";
 
 function defaultDownload(doc, win, filename, mime, text) {
   const blob = new win.Blob([text], { type: `${mime};charset=utf-8` });
@@ -127,6 +128,8 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     itemSearch: doc.getElementById("item-search"),
     searchResults: doc.getElementById("search-results"),
     searchCount: doc.getElementById("search-count"),
+    shortcutsToggle: doc.getElementById("shortcuts-toggle"),
+    shortcutsDialogToggle: doc.getElementById("shortcuts-dialog-toggle"),
     impactClean: doc.getElementById("impact-clean"),
     impactCount: doc.getElementById("impact-count"),
     impactCleanValue: doc.getElementById("impact-clean-value"),
@@ -137,6 +140,13 @@ export function createApp({ document: doc, window: win, deps = {} }) {
 
   const download = deps.download || ((filename, mime, text) => defaultDownload(doc, win, filename, mime, text));
   const now = deps.now || (() => (win.performance && win.performance.now ? win.performance.now() : Date.now()));
+  const storage = deps.storage || (() => {
+    try {
+      return win.localStorage || null;
+    } catch {
+      return null;
+    }
+  })();
   const prefersReducedMotion = () =>
     typeof win.matchMedia === "function" && win.matchMedia("(prefers-reduced-motion: reduce)").matches === true;
 
@@ -153,6 +163,31 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   let impactClean = 20;
   let impactCount = 1;
   const SEARCHABLE_COUNT = VERIFIED_BARCODE_CATALOG.length + Object.keys(MATERIAL_CATEGORIES).length;
+
+  // Remember each declared shortcut so aria-keyshortcuts can be restored after
+  // a visit with single-key shortcuts switched off.
+  const shortcutAttrs = new Map();
+  doc.querySelectorAll("[aria-keyshortcuts]").forEach((el) => {
+    shortcutAttrs.set(el, el.getAttribute("aria-keyshortcuts"));
+  });
+
+  function readShortcutPref() {
+    try {
+      return storage && typeof storage.getItem === "function" ? storage.getItem(SHORTCUTS_STORAGE_KEY) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeShortcutPref(enabled) {
+    try {
+      if (storage && typeof storage.setItem === "function") {
+        storage.setItem(SHORTCUTS_STORAGE_KEY, enabled ? "on" : "off");
+      }
+    } catch {
+      // Storage can be unavailable or full; the toggle still works for the session.
+    }
+  }
 
   function renderSearch() {
     const result = searchItems(searchQuery);
@@ -224,6 +259,19 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
 
+    const singleKeyOn = state.singleKeyShortcuts !== false;
+    for (const toggle of [els.shortcutsToggle, els.shortcutsDialogToggle]) {
+      if (toggle) setIfDifferent(toggle, "checked", singleKeyOn);
+    }
+    for (const [el, keys] of shortcutAttrs) {
+      const isSingleKey = keys.length === 1;
+      if (!singleKeyOn && isSingleKey) {
+        el.removeAttribute("aria-keyshortcuts");
+      } else if (el.getAttribute("aria-keyshortcuts") !== keys) {
+        el.setAttribute("aria-keyshortcuts", keys);
+      }
+    }
+
     els.barcodeStatus.className = `barcode-status tabular ${vm.barcodeStatus.tone === "idle" ? "" : vm.barcodeStatus.tone}`.trim();
     els.barcodeStatus.textContent = vm.barcodeStatus.text;
     els.barcodeInput.setAttribute("aria-invalid", vm.barcodeStatus.invalid ? "true" : "false");
@@ -277,6 +325,9 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   function dispatch(action) {
     const next = reduce(state, action);
     if (next !== state) {
+      if (action.type === "SET_SINGLE_KEY_SHORTCUTS" && next.singleKeyShortcuts !== state.singleKeyShortcuts) {
+        writeShortcutPref(next.singleKeyShortcuts !== false);
+      }
       state = next;
       render();
     }
@@ -661,6 +712,8 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         dispatch({ type: "COMMIT_BARCODE", raw: target.value });
         sweep();
       }
+    } else if (target.id === "shortcuts-toggle" || target.id === "shortcuts-dialog-toggle") {
+      dispatch({ type: "SET_SINGLE_KEY_SHORTCUTS", enabled: target.checked === true });
     } else if (target.id === "csv-file-input") {
       const file = target.files && target.files[0];
       if (!file) return;
@@ -731,7 +784,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       altKey: event.altKey,
       targetTag: target.tagName,
       isContentEditable: target.isContentEditable
-    });
+    }, state.singleKeyShortcuts !== false);
     if (!id) return;
     const dialogOpen = els.shortcutDialog.open === true;
     if (id === "close-help") {
@@ -767,6 +820,9 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       type: "SET_NOTICE",
       text: `Share link: ${hydrated.issues.length} unreadable value${hydrated.issues.length === 1 ? " was" : "s were"} ignored.`
     });
+  }
+  if (readShortcutPref() === "off") {
+    state = reduce(state, { type: "SET_SINGLE_KEY_SHORTCUTS", enabled: false });
   }
 
   doc.addEventListener("click", handleClick);

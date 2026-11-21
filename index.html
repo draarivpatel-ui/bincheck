@@ -68,6 +68,10 @@
       <a class="nav-link" href="#benchmark-heading">Benchmark</a>
       <a class="nav-link" href="#cheatsheet-heading">Kitchen guide</a>
       <button type="button" id="shortcut-help-btn" class="nav-link nav-help" data-action="open-help" aria-haspopup="dialog" aria-keyshortcuts="?">Shortcuts <kbd>?</kbd></button>
+      <label class="shortcut-toggle" for="shortcuts-toggle" title="Turn the single-letter keyboard shortcuts on or off">
+        <input type="checkbox" id="shortcuts-toggle" checked />
+        <span>Key shortcuts</span>
+      </label>
     </nav>
   </header>
 
@@ -557,7 +561,11 @@
       <button type="button" id="shortcut-close-btn" class="secondary-btn" data-action="close-help">Close</button>
     </div>
     <ul id="shortcut-list" class="shortcut-list"></ul>
-    <p class="field-help">Shortcuts pause while you type in a field.</p>
+    <label class="shortcut-toggle dialog-shortcut-toggle" for="shortcuts-dialog-toggle">
+      <input type="checkbox" id="shortcuts-dialog-toggle" checked />
+      <span>Single-key shortcuts</span>
+    </label>
+    <p class="field-help">Single-key shortcuts pause while you type in a field and can be switched off here. Escape and Ctrl+Enter always work.</p>
   </dialog>
 
   <p id="status-live" class="notice-bar no-print" role="status" aria-live="polite"></p>

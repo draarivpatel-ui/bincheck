@@ -52,6 +52,7 @@ export function createInitialState(overrides = {}) {
     csvText: "",
     batchResult: null,
     benchmarkResult: null,
+    singleKeyShortcuts: true,
     notice: "",
     ...overrides
   };
@@ -252,6 +253,19 @@ export function reduce(state, action) {
         notice: `Benchmark finished: ${action.result.failures.length} failures across ${action.result.meta.scoredEvaluations} evaluations.`
       };
     }
+    case "SET_SINGLE_KEY_SHORTCUTS": {
+      const enabled = action.enabled !== false;
+      if (enabled === state.singleKeyShortcuts) {
+        return state;
+      }
+      return {
+        ...state,
+        singleKeyShortcuts: enabled,
+        notice: enabled
+          ? "Single-key shortcuts on."
+          : "Single-key shortcuts off. Escape and Ctrl+Enter still work, and every action stays available by mouse or touch."
+      };
+    }
     case "SET_NOTICE": {
       return { ...state, notice: String(action.text ?? "").slice(0, 400) };
     }
@@ -327,8 +341,10 @@ export function selectViewModel(state) {
 /**
  * Maps a keydown description to an action id from SHORTCUTS, or null.
  * `event` is { key, ctrlKey, metaKey, altKey, targetTag, isContentEditable }.
+ * When `singleKeyShortcuts` is false every printable single-key shortcut is
+ * suppressed (WCAG 2.1.4); Escape still resolves so the dialog can close.
  */
-export function resolveShortcut(event) {
+export function resolveShortcut(event, singleKeyShortcuts = true) {
   if (!event || typeof event.key !== "string") {
     return null;
   }
@@ -340,7 +356,7 @@ export function resolveShortcut(event) {
   if (event.key === "Escape") {
     return "close-help";
   }
-  if (typing) {
+  if (!singleKeyShortcuts || typing) {
     return null;
   }
   const entry = SHORTCUTS.find((candidate) => candidate.key === event.key || candidate.key === event.key.toLowerCase());

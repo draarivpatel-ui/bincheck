@@ -13,7 +13,7 @@ import {
   INSPECTION_REPORT_SCHEMA,
   INSPECTION_REPORT_CSV_COLUMNS
 } from "../js/bincheck-report.js";
-import { BATCH_LIMITS, SAMPLE_BATCH_CSV } from "../js/bincheck-batch.js";
+import { BATCH_LIMITS, SAMPLE_BATCH_CSV, runBatchFromCsv, runBatchFromBytes, batchResultToJson } from "../js/bincheck-batch.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -185,6 +185,52 @@ test("report csv: cells with commas, quotes and formula prefixes stay safe", () 
 test("report csv: repeated exports are byte-identical", () => {
   const report = buildInspectionReport({ barcode: CATALOG_UPC });
   assert.equal(inspectionReportToCsv(report), inspectionReportToCsv(report));
+});
+
+/* ---------------- batch JSON parse diagnostics ---------------- */
+
+test("batch json: parse errors, byte diagnostics, truncation and dropped rows are exported", () => {
+  const result = runBatchFromCsv("label,material\nBottle,resin-1-pet\n\"Broken");
+  assert.equal(result.rows.length, 1);
+  const payload = JSON.parse(batchResultToJson(result));
+  assert.equal(payload.parse.encoding, "utf-8");
+  assert.equal(payload.parse.bytes, result.parse.bytes);
+  assert.equal(payload.parse.hasHeader, true);
+  assert.equal(payload.parse.truncated, false);
+  assert.equal(payload.parse.droppedRows, 1, "the unterminated record is reported as dropped");
+  assert.equal(payload.parse.errors.length, 1);
+  assert.equal(payload.parse.errors[0].code, "CSV_UNTERMINATED_QUOTE");
+  assert.equal(payload.rows.length, 1);
+
+  const over = runBatchFromCsv(`barcode\n${Array.from({ length: BATCH_LIMITS.maxRows + 2 }, () => "041220576463").join("\n")}`);
+  const overJson = JSON.parse(batchResultToJson(over));
+  assert.equal(overJson.parse.truncated, true);
+  assert.equal(overJson.parse.droppedRows, 2);
+  assert.ok(overJson.parse.errors.some((entry) => entry.code === "ROW_LIMIT"));
+
+  const utf16 = runBatchFromBytes(new Uint8Array(utf16Bytes("label,barcode\nBottle,041220576463\n")));
+  const utf16Json = JSON.parse(batchResultToJson(utf16));
+  assert.equal(utf16Json.parse.encoding, "utf-16le");
+  assert.equal(utf16Json.parse.bytes > 0, true);
+  assert.equal(utf16Json.parse.droppedRows, 0);
+
+  // A rejected duplicate header also lands in the export diagnostics.
+  const dup = runBatchFromCsv("material,category\nresin-6-ps-foam,resin-1-pet\n");
+  const dupJson = JSON.parse(batchResultToJson(dup));
+  assert.equal(dupJson.rows.length, 0);
+  assert.equal(dupJson.parse.droppedRows, 1);
+  assert.equal(dupJson.parse.errors.at(-1).code, "DUPLICATE_COLUMN");
+});
+
+test("batch json: diagnostics survive on results with no parse block and stay deterministic", () => {
+  const clean = runBatchFromCsv(SAMPLE_BATCH_CSV);
+  const a = batchResultToJson(clean);
+  const b = batchResultToJson(clean);
+  assert.equal(a, b);
+  const payload = JSON.parse(a);
+  assert.equal(payload.parse.errors.length, 0);
+  assert.equal(payload.parse.truncated, false);
+  assert.equal(payload.parse.droppedRows, 0);
 });
 
 /* ---------------- state: RUN_BATCH_FILE ---------------- */

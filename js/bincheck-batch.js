@@ -32,7 +32,6 @@ export const CSV_COLUMNS = Object.freeze(["label", "barcode", "material", "resin
 const BINARY_SIGNATURES = [
   { format: "a PNG image", bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
   { format: "a JPEG image", bytes: [0xff, 0xd8, 0xff] },
-  { format: "a GIF image", bytes: [0x47, 0x49, 0x46, 0x38] },
   { format: "a ZIP archive (spreadsheets such as .xlsx use this container)", bytes: [0x50, 0x4b, 0x03, 0x04] },
   { format: "a PDF document", bytes: [0x25, 0x50, 0x44, 0x46] },
   { format: "a gzip-compressed file", bytes: [0x1f, 0x8b] },
@@ -48,6 +47,35 @@ function asciiAt(bytes, start, length) {
   return out;
 }
 
+function isTextByte(b) {
+  return b === 0x09 || b === 0x0a || b === 0x0d || (b >= 0x20 && b <= 0x7e);
+}
+
+/**
+ * GIF detection needs more than the four-byte "GIF8" prefix a plain text
+ * header can start with (a CSV column literally named GIF8-column). Require
+ * the complete GIF87a/GIF89a signature, a logical screen descriptor whose
+ * next block is a real GIF marker, and at least one byte outside the
+ * printable-text range. A valid text file can never satisfy all three.
+ */
+function looksLikeGif(bytes) {
+  if (bytes.length < 14) return false;
+  const signature = asciiAt(bytes, 0, 6);
+  if (signature !== "GIF87a" && signature !== "GIF89a") return false;
+  const width = bytes[6] | (bytes[7] << 8);
+  const height = bytes[8] | (bytes[9] << 8);
+  const packed = bytes[10];
+  const tableBytes = packed & 0x80 ? 3 * (1 << ((packed & 0x07) + 1)) : 0;
+  const nextBlock = 13 + tableBytes;
+  const blockByte = nextBlock < bytes.length ? bytes[nextBlock] : -1;
+  const plausible = width > 0 && height > 0 && (blockByte === 0x2c || blockByte === 0x21 || blockByte === 0x3b);
+  if (!plausible) return false;
+  for (const b of bytes) {
+    if (!isTextByte(b)) return true;
+  }
+  return false;
+}
+
 function matchBinarySignature(bytes) {
   for (const sig of BINARY_SIGNATURES) {
     if (sig.bytes) {
@@ -57,6 +85,9 @@ function matchBinarySignature(bytes) {
       if (bytes.length < sig.text.length) continue;
       if (asciiAt(bytes, 0, sig.text.length) === sig.text) return sig;
     }
+  }
+  if (looksLikeGif(bytes)) {
+    return { format: "a GIF image" };
   }
   if (bytes.length >= 12 && asciiAt(bytes, 0, 4) === "RIFF" && ["WAVE", "AVI ", "WEBP"].includes(asciiAt(bytes, 8, 4))) {
     return { format: "a RIFF media file (WAVE audio, AVI video, or WebP image)" };
@@ -406,6 +437,9 @@ export function parseCsv(text) {
   let field = "";
   let inQuotes = false;
   let fieldWasQuoted = false;
+  let afterCloseQuote = false;
+  let recordMalformed = false;
+  let skippedRows = 0;
   let line = 1;
   let recordLine = 1;
   let touched = false;
@@ -421,12 +455,15 @@ export function parseCsv(text) {
     const blank = cells.every((cell) => cell === "");
     const first = cells[0] ?? "";
     const isComment = !blank && first.startsWith("#") && !touchedQuotedFirst;
-    if (!blank && !isComment) {
+    if (recordMalformed) {
+      skippedRows += 1;
+    } else if (!blank && !isComment) {
       records.push({ line: recordLine, cells });
     }
     cells = [];
     touched = false;
     touchedQuotedFirst = false;
+    recordMalformed = false;
   };
 
   for (let i = 0; i < source.length; i += 1) {
@@ -438,6 +475,7 @@ export function parseCsv(text) {
           i += 1;
         } else {
           inQuotes = false;
+          afterCloseQuote = true;
         }
       } else {
         if (ch === "\r" || (ch === "\n" && source[i - 1] !== "\r")) {
@@ -446,6 +484,28 @@ export function parseCsv(text) {
         field += ch;
       }
       continue;
+    }
+    if (afterCloseQuote) {
+      if (ch === " " || ch === "\t") {
+        continue;
+      }
+      if (ch !== "," && ch !== "\n" && ch !== "\r") {
+        if (!recordMalformed) {
+          recordMalformed = true;
+          const junk = source.slice(i, i + 20).split(/[,\r\n]/)[0];
+          errors.push(
+            csvError(
+              line,
+              "CSV_TRAILING_CHARS",
+              `Characters ("${junk}") follow a closing quote, so the row starting on line ${recordLine} could not be read and was skipped.`
+            )
+          );
+        }
+        field += ch;
+        touched = true;
+        continue;
+      }
+      afterCloseQuote = false;
     }
     if (ch === '"' && field.trim() === "") {
       inQuotes = true;
@@ -472,18 +532,21 @@ export function parseCsv(text) {
   }
 
   if (inQuotes) {
+    skippedRows += 1;
     errors.push(csvError(recordLine, "CSV_UNTERMINATED_QUOTE", "A quoted field was never closed. The rest of the file was ignored."));
-    return { records, errors };
+    return { records, errors, skippedRows };
   }
   if (touched || field !== "" || cells.length > 0) {
     endRecord();
   }
-  return { records, errors };
+  return { records, errors, skippedRows };
 }
 
 /**
  * Parses batch CSV text into normalized row objects.
- * Returns { rows, errors, hasHeader, columns, truncated, bytes }.
+ * Returns { rows, errors, hasHeader, columns, truncated, droppedRows, bytes }.
+ * `droppedRows` counts records that were read but never evaluated: rows past
+ * the limit, malformed quoted rows and rows dropped by a rejected header.
  */
 export function parseBatchCsv(text) {
   const errors = [];
@@ -494,6 +557,7 @@ export function parseBatchCsv(text) {
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
+      droppedRows: 0,
       bytes: 0
     };
   }
@@ -505,6 +569,7 @@ export function parseBatchCsv(text) {
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
+      droppedRows: 0,
       bytes
     };
   }
@@ -517,6 +582,7 @@ export function parseBatchCsv(text) {
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
+      droppedRows: 0,
       bytes
     };
   }
@@ -526,6 +592,7 @@ export function parseBatchCsv(text) {
   let records = parsed.records;
   let columns = [...HEADERLESS_COLUMNS];
   let hasHeader = false;
+  let droppedRows = parsed.skippedRows || 0;
 
   if (records.length > 0) {
     const firstCells = records[0].cells.map((cell) => cell.toLowerCase().replace(/[^a-z0-9]/g, ""));
@@ -542,6 +609,31 @@ export function parseBatchCsv(text) {
           errors.push(csvError(records[0].line, "UNKNOWN_COLUMN", `Column "${cell.slice(0, 30)}" is not recognized and was ignored.`));
         }
       });
+      const firstIndexOf = new Map();
+      const duplicateIndexes = new Map();
+      headerColumns.forEach((column, index) => {
+        if (!column) return;
+        if (firstIndexOf.has(column)) {
+          if (!duplicateIndexes.has(column)) duplicateIndexes.set(column, [firstIndexOf.get(column)]);
+          duplicateIndexes.get(column).push(index);
+        } else {
+          firstIndexOf.set(column, index);
+        }
+      });
+      if (duplicateIndexes.size > 0) {
+        for (const [column, indexes] of duplicateIndexes) {
+          const detail = indexes.map((index) => `"${records[0].cells[index].slice(0, 30)}" (column ${index + 1})`).join(" and ");
+          errors.push({
+            line: records[0].line,
+            code: "DUPLICATE_COLUMN",
+            column,
+            headers: indexes.map((index) => records[0].cells[index]),
+            message: `Headers ${detail} both map to the "${column}" column, so one value would silently overwrite the other. Rename or remove a column and try again.`
+          });
+        }
+        droppedRows += records.length - 1;
+        return { rows: [], errors, hasHeader, columns, truncated: false, droppedRows, bytes };
+      }
       records = records.slice(1);
     }
   }
@@ -549,6 +641,7 @@ export function parseBatchCsv(text) {
   let truncated = false;
   if (records.length > BATCH_LIMITS.maxRows) {
     truncated = true;
+    droppedRows += records.length - BATCH_LIMITS.maxRows;
     errors.push(csvError(records[BATCH_LIMITS.maxRows].line, "ROW_LIMIT", `Only the first ${BATCH_LIMITS.maxRows} rows were read.`));
     records = records.slice(0, BATCH_LIMITS.maxRows);
   }
@@ -577,7 +670,7 @@ export function parseBatchCsv(text) {
     errors.push(csvError(0, "NO_DATA_ROWS", "No data rows were found."));
   }
 
-  return { rows, errors, hasHeader, columns, truncated, bytes };
+  return { rows, errors, hasHeader, columns, truncated, droppedRows, bytes };
 }
 
 function summarizeCity(cityId, evaluatedRows) {
@@ -721,6 +814,7 @@ export function runBatchFromCsv(text) {
       errors: parsed.errors,
       hasHeader: parsed.hasHeader,
       truncated: parsed.truncated,
+      droppedRows: parsed.droppedRows,
       bytes: parsed.bytes,
       encoding: "utf-8"
     },
@@ -745,6 +839,7 @@ export function parseBatchBytes(input) {
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
+      droppedRows: 0,
       bytes: decoded.byteCount,
       encoding: decoded.encoding,
       decodedText: null
@@ -768,6 +863,7 @@ export function runBatchFromBytes(input) {
       errors: parsed.errors,
       hasHeader: parsed.hasHeader,
       truncated: parsed.truncated,
+      droppedRows: parsed.droppedRows,
       bytes: parsed.bytes,
       encoding: parsed.encoding
     },
@@ -834,10 +930,19 @@ export function batchResultToCsv(result) {
 
 /** Deterministic JSON export. Contains no timestamps unless `generatedOn` is supplied. */
 export function batchResultToJson(result, options = {}) {
+  const parse = result.parse || {};
   const payload = {
     tool: "BinCheck",
     rulesSnapshot: { ...RULES_SNAPSHOT_META },
     generatedOn: options.generatedOn ?? null,
+    parse: {
+      hasHeader: parse.hasHeader === true,
+      encoding: parse.encoding ?? null,
+      bytes: Number.isInteger(parse.bytes) ? parse.bytes : null,
+      truncated: parse.truncated === true,
+      droppedRows: Number.isInteger(parse.droppedRows) ? parse.droppedRows : 0,
+      errors: (Array.isArray(parse.errors) ? parse.errors : []).map((entry) => ({ ...entry }))
+    },
     totals: result.totals,
     cities: result.cities,
     rows: result.rows.map((row) => ({
