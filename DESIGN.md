@@ -59,3 +59,13 @@ Every place a disposal verdict appears (result banner, comparison columns, searc
 | Split it | `SPLIT_DISPOSAL` | `#6D28D9` | splitting arrows |
 
 White text on each color passes WCAG AA (lowest is Recycle at 5.5:1). "Yard waste" is the cities' green waste collection, not a backyard compost bin, so the page does not call it compost.
+
+## Workbench components (2026-11)
+
+The municipal diff, cascade lab, signed audit panel and self-test panel reuse the specification-sheet grammar: `--surface` cards, 1px `--line` hairlines, `tabular` figures and the verdict palette. Three additions stay inside that system:
+
+1. **Profile chips.** Snapshot profiles (Riverside, Houston) and archetype profiles share one table frame, but archetypes are always labeled as illustrative planning models, never with a city source link.
+2. **Cascade stages.** Each hazard scenario renders as a numbered stage list; unreached stages sit at reduced opacity in `--muted`, reached stages carry the severity accent (`--amber` for process damage, `--hazard` for line stop and facility emergency).
+3. **Signature block.** The audit digest is set in `--font-mono` inside a `--surface-alt` well so the 64-hex tag reads as a specification value, and the integrity disclaimer sits beneath it in `--muted` small print.
+
+The organics stream reuses the yard-waste palette (`#3F6212`, leaf icon) so its verdict reads as a curbside collection stream rather than a backyard pile.

@@ -8,7 +8,8 @@
     "test": "node --test tests/",
     "verify:sources": "node scripts/verify-city-sources.js --offline",
     "verify:live": "node scripts/verify-city-sources.js --live",
-    "benchmark": "node scripts/run-benchmark.js"
+    "benchmark": "node scripts/run-benchmark.js",
+    "audit": "node scripts/browser-audit.mjs"
   },
   "repository": {
     "type": "git",

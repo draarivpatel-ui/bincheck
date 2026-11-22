@@ -12,13 +12,14 @@ import {
   scoreCartBatch
 } from "../js/bincheck-engine.js";
 
-/** The five engine streams as one-word verdicts. GREEN_WASTE is the city yard waste program. */
+/** The five engine streams plus the workbench ORGANICS_CART stream as one-word verdicts. */
 export const VERDICTS = Object.freeze({
   RECYCLE_CART: Object.freeze({ key: "recycle", word: "Recycle", where: "Curbside recycling cart" }),
   TRASH_CART: Object.freeze({ key: "trash", word: "Trash", where: "Garbage cart" }),
   SPECIAL_DROPOFF: Object.freeze({ key: "dropoff", word: "Drop-off", where: "Take it to a drop-off site" }),
   GREEN_WASTE: Object.freeze({ key: "yard", word: "Yard waste", where: "City yard waste collection" }),
-  SPLIT_DISPOSAL: Object.freeze({ key: "split", word: "Split it", where: "Part recycles, part goes in the trash" })
+  SPLIT_DISPOSAL: Object.freeze({ key: "split", word: "Split it", where: "Part recycles, part goes in the trash" }),
+  ORGANICS_CART: Object.freeze({ key: "yard", word: "Organics", where: "Curbside organics cart" })
 });
 
 export function verdictFor(stream) {

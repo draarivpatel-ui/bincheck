@@ -17,6 +17,11 @@ import {
   renderImpact
 } from "./render.js";
 import { searchItems, computeContaminationImpact } from "./insights.js";
+import { buildSignedAudit, signedAuditToJson, signedAuditToCsv, signedAuditToMarkdown, verifySignedAudit } from "../js/bincheck-audit.js";
+import { runSelfTests } from "../js/bincheck-selftest.js";
+import { WORKBENCH_PRESETS } from "../js/bincheck-municipal.js";
+import { normalizeCascadeId } from "../js/bincheck-cascade.js";
+import { renderMunicipalDiff, renderCascadeLab, renderAuditPanel, renderAuditVerify, renderSelfTests } from "./workbench-render.js";
 
 const DEMO_SCENARIOS = {
   "pet-bottle": {
@@ -135,8 +140,24 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     impactCleanValue: doc.getElementById("impact-clean-value"),
     impactCountValue: doc.getElementById("impact-count-value"),
     impactOutput: doc.getElementById("impact-output"),
-    impactItemLabel: doc.getElementById("impact-item-label")
+    impactItemLabel: doc.getElementById("impact-item-label"),
+    municipalProfileA: doc.getElementById("municipal-profile-a"),
+    municipalProfileB: doc.getElementById("municipal-profile-b"),
+    municipalBasket: doc.getElementById("municipal-basket"),
+    municipalDiffOutput: doc.getElementById("municipal-diff-output"),
+    cascadeOutput: doc.getElementById("cascade-output"),
+    auditPanelOutput: doc.getElementById("audit-panel-output"),
+    auditVerifyInput: doc.getElementById("audit-verify-input"),
+    auditVerifyOutput: doc.getElementById("audit-verify-output"),
+    selftestOutput: doc.getElementById("selftest-output")
   };
+  const cascadeSliders = [...doc.querySelectorAll("[data-cascade]")];
+  const cascadeValueEls = new Map(
+    cascadeSliders.map((slider) => {
+      const id = slider.getAttribute("data-cascade");
+      return [id, doc.getElementById(`casv-${id}`)];
+    })
+  );
 
   const download = deps.download || ((filename, mime, text) => defaultDownload(doc, win, filename, mime, text));
   const now = deps.now || (() => (win.performance && win.performance.now ? win.performance.now() : Date.now()));
@@ -315,6 +336,26 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     }
     els.benchmarkExportBtn.disabled = !state.benchmarkResult;
 
+    setIfDifferent(els.municipalProfileA, "value", state.municipalProfileA);
+    setIfDifferent(els.municipalProfileB, "value", state.municipalProfileB);
+    setIfDifferent(els.municipalBasket, "value", state.municipalBasket);
+    els.municipalDiffOutput.innerHTML = renderMunicipalDiff(vm.workbench.diff);
+
+    for (const slider of cascadeSliders) {
+      const id = slider.getAttribute("data-cascade");
+      const count = state.cascadeCounts[id] || 0;
+      setIfDifferent(slider, "value", String(count));
+      const valueEl = cascadeValueEls.get(id);
+      if (valueEl) {
+        setIfDifferent(valueEl, "textContent", String(count));
+      }
+    }
+    els.cascadeOutput.innerHTML = renderCascadeLab(vm.workbench.cascade);
+
+    els.auditPanelOutput.innerHTML = renderAuditPanel({ signed: currentSignedAudit() });
+    els.auditVerifyOutput.innerHTML = renderAuditVerify(state.auditResult);
+    els.selftestOutput.innerHTML = renderSelfTests(state.selfTestResult);
+
     els.statusLive.textContent = state.notice;
     if (noticeTimer) {
       win.clearTimeout(noticeTimer);
@@ -484,6 +525,33 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     dispatch({ type: "SET_BENCHMARK", result: runBenchmark({ now }) });
   }
 
+  function currentSignedAudit() {
+    return buildSignedAudit({
+      basketId: state.municipalBasket,
+      profileIds: [state.municipalProfileA, state.municipalProfileB]
+    });
+  }
+
+  function exportAudit(kind) {
+    const signed = currentSignedAudit();
+    if (kind === "csv") {
+      download("bincheck-diversion-audit.csv", "text/csv", signedAuditToCsv(signed));
+    } else if (kind === "md") {
+      download("bincheck-diversion-audit.md", "text/markdown", signedAuditToMarkdown(signed));
+    } else {
+      download("bincheck-diversion-audit.signed.json", "application/json", signedAuditToJson(signed));
+    }
+  }
+
+  function runSelfTestsNow() {
+    dispatch({ type: "SET_SELFTEST_RESULT", result: runSelfTests({ now }) });
+  }
+
+  function verifyAuditInput() {
+    dispatch({ type: "SET_AUDIT_INPUT", text: els.auditVerifyInput.value });
+    dispatch({ type: "SET_AUDIT_RESULT", result: verifySignedAudit(els.auditVerifyInput.value) });
+  }
+
   function exportBatch(kind) {
     if (!state.batchResult || state.batchResult.rows.length === 0) return;
     if (kind === "csv") {
@@ -644,6 +712,54 @@ export function createApp({ document: doc, window: win, deps = {} }) {
           download("bincheck-benchmark-report.json", "application/json", benchmarkToJson(state.benchmarkResult));
         }
         break;
+      case "apply-preset": {
+        const presetId = actionEl.getAttribute("data-preset");
+        if (WORKBENCH_PRESETS[presetId]) {
+          dispatch({ type: "APPLY_WORKBENCH_PRESET", presetId });
+          const heading = WORKBENCH_PRESETS[presetId].patch.cascadeCounts
+            ? doc.getElementById("cascade-heading")
+            : doc.getElementById("municipal-diff-heading");
+          if (heading && typeof heading.scrollIntoView === "function") {
+            heading.scrollIntoView({ behavior: "auto", block: "start" });
+          }
+        }
+        break;
+      }
+      case "cascade-reset":
+        dispatch({ type: "RESET_CASCADE" });
+        break;
+      case "export-audit-json":
+        exportAudit("json");
+        break;
+      case "export-audit-csv":
+        exportAudit("csv");
+        break;
+      case "export-audit-md":
+        exportAudit("md");
+        break;
+      case "copy-audit": {
+        const text = signedAuditToJson(currentSignedAudit());
+        try {
+          win.navigator.clipboard.writeText(text).then(
+            () => dispatch({ type: "SET_NOTICE", text: "Signed audit JSON copied to the clipboard." }),
+            () => dispatch({ type: "SET_NOTICE", text: "Clipboard unavailable; use Download signed JSON instead." })
+          );
+        } catch {
+          dispatch({ type: "SET_NOTICE", text: "Clipboard unavailable; use Download signed JSON instead." });
+        }
+        break;
+      }
+      case "load-audit-demo": {
+        els.auditVerifyInput.value = signedAuditToJson(currentSignedAudit());
+        dispatch({ type: "SET_NOTICE", text: "Current signed export loaded into the replay box." });
+        break;
+      }
+      case "verify-audit":
+        verifyAuditInput();
+        break;
+      case "run-selftests":
+        runSelfTestsNow();
+        break;
       case "copy-link":
         copyShareLink();
         break;
@@ -700,6 +816,10 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       if (target.id === "impact-clean") impactClean = Number(target.value);
       else impactCount = Number(target.value);
       renderImpactPanel(selectViewModel(state));
+    } else if (target.id === "audit-verify-input") {
+      dispatch({ type: "SET_AUDIT_INPUT", text: target.value });
+    } else if (target.getAttribute && normalizeCascadeId(target.getAttribute("data-cascade"))) {
+      dispatch({ type: "SET_CASCADE_COUNT", scenarioId: target.getAttribute("data-cascade"), count: Number(target.value) });
     }
   }
 
@@ -719,6 +839,12 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       }
     } else if (target.id === "shortcuts-toggle" || target.id === "shortcuts-dialog-toggle") {
       dispatch({ type: "SET_SINGLE_KEY_SHORTCUTS", enabled: target.checked === true });
+    } else if (target.id === "municipal-profile-a") {
+      dispatch({ type: "SET_MUNICIPAL_PROFILE", slot: "A", profileId: target.value });
+    } else if (target.id === "municipal-profile-b") {
+      dispatch({ type: "SET_MUNICIPAL_PROFILE", slot: "B", profileId: target.value });
+    } else if (target.id === "municipal-basket") {
+      dispatch({ type: "SET_MUNICIPAL_BASKET", basketId: target.value });
     } else if (target.id === "csv-file-input") {
       const file = target.files && target.files[0];
       if (!file) return;

@@ -19,6 +19,13 @@ import {
   encodeShareHash
 } from "../js/bincheck-validate.js";
 import { runBatchFromCsv, runBatchFromBytes, SAMPLE_BATCH_CSV } from "../js/bincheck-batch.js";
+import {
+  normalizeProfileId,
+  normalizeBasketId,
+  compareProfiles,
+  WORKBENCH_PRESETS
+} from "../js/bincheck-municipal.js";
+import { normalizeCascadeId, clampCascadeCount, runCascadeLab } from "../js/bincheck-cascade.js";
 
 export const MAX_CART_ITEMS = 50;
 
@@ -52,6 +59,14 @@ export function createInitialState(overrides = {}) {
     csvText: "",
     batchResult: null,
     benchmarkResult: null,
+    municipalProfileA: "Riverside-tx",
+    municipalProfileB: "dual-stream-glass-out",
+    municipalBasket: "tricky-household",
+    cascadeCounts: {},
+    workbenchPreset: null,
+    selfTestResult: null,
+    auditInput: "",
+    auditResult: null,
     singleKeyShortcuts: true,
     notice: "",
     ...overrides
@@ -190,6 +205,38 @@ export function reduce(state, action) {
         if (!hasBarcode) next.barcode = "";
       }
       if (VALID_CONDITIONS.includes(patch.condition)) next.condition = patch.condition;
+      if (typeof patch.workbenchPreset === "string" && Object.hasOwn(WORKBENCH_PRESETS, patch.workbenchPreset)) {
+        const presetPatch = WORKBENCH_PRESETS[patch.workbenchPreset].patch;
+        next.workbenchPreset = patch.workbenchPreset;
+        if (normalizeProfileId(presetPatch.profileA)) next.municipalProfileA = presetPatch.profileA;
+        if (normalizeProfileId(presetPatch.profileB)) next.municipalProfileB = presetPatch.profileB;
+        if (normalizeBasketId(presetPatch.basketId)) next.municipalBasket = presetPatch.basketId;
+        if (presetPatch.cascadeCounts && typeof presetPatch.cascadeCounts === "object") {
+          next.cascadeCounts = { ...presetPatch.cascadeCounts };
+        }
+      }
+      if (normalizeProfileId(patch.municipalProfileA)) {
+        next.municipalProfileA = patch.municipalProfileA;
+        next.workbenchPreset = null;
+      }
+      if (normalizeProfileId(patch.municipalProfileB)) {
+        next.municipalProfileB = patch.municipalProfileB;
+        next.workbenchPreset = null;
+      }
+      if (normalizeBasketId(patch.municipalBasket)) {
+        next.municipalBasket = patch.municipalBasket;
+        next.workbenchPreset = null;
+      }
+      if (patch.cascadeCounts && typeof patch.cascadeCounts === "object") {
+        const counts = {};
+        for (const [id, value] of Object.entries(patch.cascadeCounts)) {
+          if (normalizeCascadeId(id)) {
+            counts[id] = clampCascadeCount(value);
+          }
+        }
+        next.cascadeCounts = counts;
+        next.workbenchPreset = null;
+      }
       if (hasBarcode && patch.barcode !== "" && !hasMaterial) {
         const lookup = lookupProductByBarcode(patch.barcode);
         if (lookup.found && lookup.product) {
@@ -251,6 +298,88 @@ export function reduce(state, action) {
         ...state,
         benchmarkResult: action.result,
         notice: `Benchmark finished: ${action.result.failures.length} failures across ${action.result.meta.scoredEvaluations} evaluations.`
+      };
+    }
+    case "SET_MUNICIPAL_PROFILE": {
+      const id = normalizeProfileId(action.profileId);
+      const slot = action.slot === "B" ? "municipalProfileB" : action.slot === "A" ? "municipalProfileA" : null;
+      if (!id || !slot) {
+        return state;
+      }
+      return { ...state, [slot]: id, workbenchPreset: null, notice: "" };
+    }
+    case "SET_MUNICIPAL_BASKET": {
+      const id = normalizeBasketId(action.basketId);
+      if (!id) {
+        return state;
+      }
+      return { ...state, municipalBasket: id, workbenchPreset: null, notice: "" };
+    }
+    case "SET_CASCADE_COUNT": {
+      const id = normalizeCascadeId(action.scenarioId);
+      if (!id) {
+        return state;
+      }
+      const count = clampCascadeCount(action.count);
+      if (count === 0 && !(id in state.cascadeCounts)) {
+        return state;
+      }
+      if (count === state.cascadeCounts[id]) {
+        return state;
+      }
+      const nextCounts = { ...state.cascadeCounts };
+      if (count > 0) {
+        nextCounts[id] = count;
+      } else {
+        delete nextCounts[id];
+      }
+      return { ...state, cascadeCounts: nextCounts, workbenchPreset: null };
+    }
+    case "RESET_CASCADE": {
+      if (Object.keys(state.cascadeCounts).length === 0 && !state.workbenchPreset) {
+        return state;
+      }
+      return { ...state, cascadeCounts: {}, workbenchPreset: null, notice: "Cascade lab reset." };
+    }
+    case "APPLY_WORKBENCH_PRESET": {
+      const preset = WORKBENCH_PRESETS[action.presetId];
+      if (!preset) {
+        return state;
+      }
+      const patch = preset.patch;
+      return {
+        ...state,
+        workbenchPreset: preset.id,
+        municipalProfileA: normalizeProfileId(patch.profileA) || state.municipalProfileA,
+        municipalProfileB: normalizeProfileId(patch.profileB) || state.municipalProfileB,
+        municipalBasket: normalizeBasketId(patch.basketId) || state.municipalBasket,
+        cascadeCounts: patch.cascadeCounts ? { ...patch.cascadeCounts } : state.cascadeCounts,
+        notice: `Preset "${preset.name}" loaded.`
+      };
+    }
+    case "SET_SELFTEST_RESULT": {
+      if (!action.result || !Array.isArray(action.result.results)) {
+        return state;
+      }
+      return {
+        ...state,
+        selfTestResult: action.result,
+        notice: action.result.allPass
+          ? `Self-tests: ${action.result.passed}/${action.result.total} passed.`
+          : `Self-tests: ${action.result.failed} of ${action.result.total} FAILED.`
+      };
+    }
+    case "SET_AUDIT_INPUT": {
+      return { ...state, auditInput: String(action.text ?? "").slice(0, 262144) };
+    }
+    case "SET_AUDIT_RESULT": {
+      if (!action.result || typeof action.result.ok !== "boolean") {
+        return state;
+      }
+      return {
+        ...state,
+        auditResult: action.result,
+        notice: action.result.ok ? "Signed audit verified intact." : "Audit check failed: see the verifier panel."
       };
     }
     case "SET_SINGLE_KEY_SHORTCUTS": {
@@ -318,6 +447,11 @@ export function selectViewModel(state) {
   const evaluation = state.cityMode === "compare" ? null : evaluateItemDisposal({ ...query, city: activeCity });
   const statusSource = state.draftBarcode !== null ? state.draftBarcode : state.barcode;
   const cartSummary = scoreCartBatch(state.batchItems, activeCity);
+  const workbench = {
+    diff: compareProfiles(state.municipalProfileA, state.municipalProfileB, state.municipalBasket),
+    cascade: runCascadeLab(state.cascadeCounts, { city: activeCity }),
+    preset: state.workbenchPreset
+  };
   const shown = evaluation || comparison.Riverside;
   const liveSummary =
     state.cityMode === "compare"
@@ -333,6 +467,7 @@ export function selectViewModel(state) {
     barcodeStatus: buildBarcodeStatus(statusSource),
     barcodeCheck: statusSource && String(statusSource).trim() !== "" ? validateBarcodeCheckDigit(statusSource) : null,
     cartSummary,
+    workbench,
     liveSummary,
     shareHash: encodeShareHash(state)
   };

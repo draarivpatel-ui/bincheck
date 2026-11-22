@@ -65,6 +65,10 @@
     <nav class="container section-nav" aria-label="Page sections">
       <a class="nav-link" href="#lookup-heading">Inspect an item</a>
       <a class="nav-link" href="#batch-csv-heading">Batch CSV</a>
+      <a class="nav-link" href="#municipal-diff-heading">Municipal diff</a>
+      <a class="nav-link" href="#cascade-heading">Cascade lab</a>
+      <a class="nav-link" href="#audit-heading">Signed audit</a>
+      <a class="nav-link" href="#selftest-heading">Self-tests</a>
       <a class="nav-link" href="#benchmark-heading">Benchmark</a>
       <a class="nav-link" href="#cheatsheet-heading">Kitchen guide</a>
       <button type="button" id="shortcut-help-btn" class="nav-link nav-help" data-action="open-help" aria-haspopup="dialog" aria-keyshortcuts="?">Shortcuts <kbd>?</kbd></button>
@@ -480,6 +484,127 @@
       </div>
     </section>
 
+    <section class="card workbench-panel no-print" aria-labelledby="municipal-diff-heading">
+      <div class="batch-header">
+        <div>
+          <h2 id="municipal-diff-heading">Municipal ruleset diff and diversion comparator</h2>
+        </div>
+        <span class="mono-tag tabular">6 MRF profiles</span>
+      </div>
+      <p class="field-help">One basket of tricky household items, scored under two program profiles: the two real city snapshots (Riverside and Houston, from the bundled rules engine) and four illustrative archetypes. Rule-conflict alerts flag anything that is cart-accepted under one profile but contaminating under the other.</p>
+      <div class="workbench-controls">
+        <div class="control-group">
+          <label for="municipal-profile-a" class="field-label">Profile A</label>
+          <select id="municipal-profile-a" class="select-input">
+            <option value="Riverside-tx">Riverside, TX (real snapshot)</option>
+            <option value="houston-tx">Houston, TX (real snapshot)</option>
+            <option value="strict-single-stream">Strict Single-Stream (archetype)</option>
+            <option value="dual-stream-glass-out">Dual-Stream, Glass-Out (archetype)</option>
+            <option value="organics-mandatory">Organics-Mandatory Curbside (archetype)</option>
+            <option value="rural-transfer-station">Rural Drop-Off / Transfer Station (archetype)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="municipal-profile-b" class="field-label">Profile B</label>
+          <select id="municipal-profile-b" class="select-input">
+            <option value="Riverside-tx">Riverside, TX (real snapshot)</option>
+            <option value="houston-tx">Houston, TX (real snapshot)</option>
+            <option value="strict-single-stream">Strict Single-Stream (archetype)</option>
+            <option value="dual-stream-glass-out" selected>Dual-Stream, Glass-Out (archetype)</option>
+            <option value="organics-mandatory">Organics-Mandatory Curbside (archetype)</option>
+            <option value="rural-transfer-station">Rural Drop-Off / Transfer Station (archetype)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="municipal-basket" class="field-label">Household basket</label>
+          <select id="municipal-basket" class="select-input">
+            <option value="tricky-household">Tricky household basket (14 items)</option>
+            <option value="flexible-and-foam">Film, foam and flexibles basket (6 items)</option>
+            <option value="kitchen-week">One week of kitchen packaging (8 items)</option>
+            <option value="everything">Every material category (17 items)</option>
+          </select>
+        </div>
+      </div>
+      <div class="preset-chips" role="group" aria-label="Workbench presets">
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-glass-out"><span>Glass in vs. glass out</span></button>
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-organics"><span>Compulsory organics district</span></button>
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-rural"><span>City cart vs. rural transfer station</span></button>
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="cascade-battery"><span>One battery in the cart</span></button>
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="cascade-tangler"><span>Film wraps the star-screens</span></button>
+      </div>
+      <div id="municipal-diff-output" aria-live="polite"></div>
+    </section>
+
+    <section class="card cascade-panel-outer no-print" aria-labelledby="cascade-heading">
+      <div class="batch-header">
+        <div>
+          <h2 id="cascade-heading">Wish-cycling and MRF hazard cascade lab</h2>
+        </div>
+        <button type="button" id="cascade-reset-btn" class="text-btn" data-action="cascade-reset">Reset lab</button>
+      </div>
+      <p class="field-help">Feed up to 10 copies of each top contaminant into a load of 20 clean #1 PET bottles. Each deterministic stage engages at a fixed count: the same inputs always produce the same failure path. Sliders drive the physical failure modes documented at real materials recovery facilities.</p>
+      <div class="cascade-controls">
+        <div class="control-group">
+          <label class="field-label" for="cas-film-tangler">#4 film and bags: <strong id="casv-film-tangler" class="tabular">0</strong></label>
+          <input type="range" class="impact-range" id="cas-film-tangler" data-cascade="film-tangler" min="0" max="10" step="1" value="0" aria-describedby="cascade-heading" />
+        </div>
+        <div class="control-group">
+          <label class="field-label" for="cas-lithium-ignition">Lithium-ion batteries: <strong id="casv-lithium-ignition" class="tabular">0</strong></label>
+          <input type="range" class="impact-range" id="cas-lithium-ignition" data-cascade="lithium-ignition" min="0" max="10" step="1" value="0" />
+        </div>
+        <div class="control-group">
+          <label class="field-label" for="cas-liquid-bale">Liquid-filled bottles: <strong id="casv-liquid-bale" class="tabular">0</strong></label>
+          <input type="range" class="impact-range" id="cas-liquid-bale" data-cascade="liquid-bale" min="0" max="10" step="1" value="0" />
+        </div>
+        <div class="control-group">
+          <label class="field-label" for="cas-grease-fiber">Grease-soaked pizza boxes: <strong id="casv-grease-fiber" class="tabular">0</strong></label>
+          <input type="range" class="impact-range" id="cas-grease-fiber" data-cascade="grease-fiber" min="0" max="10" step="1" value="0" />
+        </div>
+        <div class="control-group">
+          <label class="field-label" for="cas-sharps-hazmat">Sharps and hazmat items: <strong id="casv-sharps-hazmat" class="tabular">0</strong></label>
+          <input type="range" class="impact-range" id="cas-sharps-hazmat" data-cascade="sharps-hazmat" min="0" max="10" step="1" value="0" />
+        </div>
+      </div>
+      <div id="cascade-output" aria-live="polite"></div>
+    </section>
+
+    <section class="card audit-panel-outer no-print" aria-labelledby="audit-heading">
+      <div class="batch-header">
+        <div>
+          <h2 id="audit-heading">Signed diversion audit export</h2>
+        </div>
+        <span class="mono-tag tabular">HMAC-SHA-256</span>
+      </div>
+      <p class="field-help">Exports the current profile pair and basket as a signed audit: deterministic JSON, CSV (formula-injection safe) or Markdown, each carrying an HMAC-SHA-256 integrity tag computed in pure JavaScript. Paste a JSON export back below to replay it: any edited byte fails verification. The tag proves integrity, it is not a third-party certificate.</p>
+      <div class="export-actions">
+        <button type="button" id="audit-json-btn" class="primary-btn" data-action="export-audit-json">Download signed JSON</button>
+        <button type="button" id="audit-csv-btn" class="secondary-btn" data-action="export-audit-csv">Download signed CSV</button>
+        <button type="button" id="audit-md-btn" class="secondary-btn" data-action="export-audit-md">Download signed Markdown</button>
+        <button type="button" id="audit-copy-btn" class="secondary-btn" data-action="copy-audit">Copy signed JSON</button>
+      </div>
+      <div id="audit-panel-output"></div>
+      <div class="audit-verify-block">
+        <label for="audit-verify-input" class="field-label">Replay and verify a signed audit JSON</label>
+        <textarea id="audit-verify-input" class="csv-textarea tabular" rows="6" spellcheck="false" autocomplete="off" placeholder='Paste a signed BinCheck audit export (JSON with a "signature" block)'></textarea>
+        <div class="csv-actions">
+          <button type="button" id="audit-verify-btn" class="primary-btn" data-action="verify-audit">Verify signature</button>
+          <button type="button" id="audit-load-btn" class="secondary-btn" data-action="load-audit-demo">Load current export into the box</button>
+        </div>
+        <div id="audit-verify-output" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card selftest-panel-outer no-print" aria-labelledby="selftest-heading">
+      <div class="batch-header">
+        <div>
+          <h2 id="selftest-heading">In-page self-tests</h2>
+        </div>
+        <button type="button" id="selftest-run-btn" class="primary-btn" data-action="run-selftests">Run Self-Tests</button>
+      </div>
+      <p class="field-help">The same safety checks that run in the Node test suite, live in this tab: FIPS 180-4 SHA-256 known-answer vectors, the battery-never-curbside invariant under every profile and condition, diff determinism, diversion-rate bounds, cascade monotonicity, CSV escaping, and tamper detection.</p>
+      <div id="selftest-output" aria-live="polite"></div>
+    </section>
+
     <section class="card cheatsheet-section print-guide" id="printable-cheatsheet" aria-labelledby="cheatsheet-heading">
       <div class="cheatsheet-header">
         <div>
@@ -573,7 +698,7 @@
   <footer class="site-footer no-print">
     <div class="container footer-four-corners">
       <div class="footer-corner-left">
-        <p class="footer-brand-line"><strong>BinCheck Municipal Rules Engine</strong> <span class="tabular">(v1.2.0)</span></p>
+        <p class="footer-brand-line"><strong>BinCheck Municipal Rules Engine</strong> <span class="tabular">(v1.3.0)</span></p>
         <p class="footer-coords tabular">county County HHW: 1200 Blume Rd, Rosenberg, TX 77471 // Houston SWMD Westpark: 5900 Westpark Dr, Houston, TX 77057</p>
       </div>
       <div class="footer-corner-right">

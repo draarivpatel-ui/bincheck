@@ -12,9 +12,11 @@ BinCheck looks an item up by barcode, resin code or material, sets its condition
 
 A virtual cart shows how one battery or plastic bag changes an otherwise clean load, with a live chart of every item against the reject threshold. Batch mode checks up to 500 CSV rows against both cities and exports deterministic CSV and JSON reports. Rows it cannot identify are reported as errors and never guessed.
 
+The workbench upgrade adds four panels on top of that engine. A municipal ruleset comparator sorts the same tricky-item basket under six MRF program profiles (the two real city snapshots plus four labeled illustrative archetypes) and reports rule-conflict alerts, diversion and curbside-only rates, contamination risk, trash deltas and lifecycle CO2e deltas with disclosed EPA WARM-style factors. A hazard cascade lab models five documented MRF failure modes (film tanglers, lithium ignition, liquid in the paper bale, grease in the fiber bale, sharps) as deterministic stage tables with safe-disposal alternatives; its downtime and yield figures are labeled planning values, not facility measurements. A signed export produces HMAC-SHA-256 tagged JSON, CSV and Markdown audits with an in-page tamper verifier, and a Run Self-Tests panel executes the same 28-check registry the test suite runs.
+
 ## How we built it
 
-The engine is plain JavaScript with no dependencies. The UI is a pure reducer plus renderers, and the controller takes its document as a parameter, so the whole interface runs under Node's built-in test runner against a stand-in DOM built from the real page.
+The engine is plain JavaScript with no dependencies. The UI is a pure reducer plus renderers, and the controller takes its document as a parameter, so the whole interface runs under Node's built-in test runner against a stand-in DOM built from the real page. The audit signature is a dependency-free SHA-256 and HMAC implementation checked against the FIPS 180-4 known-answer vectors, and the browser audit drives real headless Chromium over the DevTools Protocol with no test framework.
 
 The calibration benchmark is the part I am proudest of. Its ground truth is not taken from the engine. Each case points at a specific field in the cities' rules snapshot, and the benchmark refuses to run if any of those anchors stop holding. A test edits the snapshot on purpose to prove the guard trips.
 
@@ -25,7 +27,8 @@ The calibration benchmark is the part I am proudest of. Its ground truth is not 
 | Disposal stream accuracy | 58 of 58 |
 | Single-digit barcode errors caught | 3,024 of 3,024 |
 | Adjacent digit swaps caught | 226 of 245, and every miss swaps two digits that differ by 5 |
-| Automated tests | 189 passing |
+| Automated tests | 519 passing |
+| Headless Chromium checks | 70 passing across 1440x900 and 390x844 |
 
 These numbers measure agreement with the published city rules, not accuracy at a real facility. No household testing has been done.
 

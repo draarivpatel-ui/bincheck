@@ -64,7 +64,13 @@ function gifBytes(version = "89a") {
 
 const KNOWN_ISSUE_CODES = new Set([
   "INVALID_CITY", "BARCODE_INVALID", "UNKNOWN_MATERIAL", "INVALID_RESIN",
-  "UNKNOWN_CONDITION", "HASH_TOO_LONG", "HASH_BAD_ENCODING", "HASH_TOO_COMPLEX"
+  "UNKNOWN_CONDITION", "HASH_TOO_LONG", "HASH_BAD_ENCODING", "HASH_TOO_COMPLEX",
+  "UNKNOWN_PROFILE", "UNKNOWN_BASKET", "INVALID_CASCADE", "UNKNOWN_PRESET"
+]);
+
+const SHARE_PATCH_KEYS = new Set([
+  "cityMode", "barcode", "materialId", "resinCode", "condition",
+  "municipalProfileA", "municipalProfileB", "municipalBasket", "cascadeCounts", "workbenchPreset"
 ]);
 
 /* ---------------- Binary container signatures ---------------- */
@@ -990,7 +996,7 @@ test("hash: decode fuzz keeps the patch inside its declared key space", () => {
     for (let j = 0; j < length; j += 1) hash += alphabet[Math.floor(rng() * alphabet.length)];
     const { patch, issues } = decodeShareHash(hash);
     for (const key of Object.keys(patch)) {
-      assert.ok(["cityMode", "barcode", "materialId", "resinCode", "condition"].includes(key), `unexpected key ${key} from ${hash}`);
+      assert.ok(SHARE_PATCH_KEYS.has(key), `unexpected key ${key} from ${hash}`);
     }
     for (const entry of issues) {
       assert.ok(KNOWN_ISSUE_CODES.has(entry.code), `unexpected code ${entry.code} from ${hash}`);

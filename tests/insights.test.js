@@ -38,7 +38,7 @@ test("verdicts: every stream the engine can return maps to a named verdict and i
     assert.notEqual(verdictFor(stream).key, "unknown");
     assert.match(renderVerdictIcon(verdictFor(stream).key), /<svg class="verdict-icon"/);
   }
-  assert.deepEqual(Object.values(VERDICTS).map((v) => v.word), ["Recycle", "Trash", "Drop-off", "Yard waste", "Split it"]);
+  assert.deepEqual(Object.values(VERDICTS).map((v) => v.word), ["Recycle", "Trash", "Drop-off", "Yard waste", "Split it", "Organics"]);
   assert.equal(verdictFor("NOT_A_STREAM").key, "unknown");
 });
 

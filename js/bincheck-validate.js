@@ -17,6 +17,8 @@ import {
   lookupProductByBarcode,
   resolveMaterialProfile
 } from "./bincheck-engine.js";
+import { normalizeProfileId, normalizeBasketId, WORKBENCH_PRESETS } from "./bincheck-municipal.js";
+import { normalizeCascadeId, clampCascadeCount, CASCADE_SCENARIO_IDS } from "./bincheck-cascade.js";
 
 export const RULES_SNAPSHOT_META = Object.freeze({
   schemaVersion: "2026.10",
@@ -269,6 +271,30 @@ export function encodeShareHash(state = {}) {
   if (VALID_CONDITIONS.includes(state.condition)) {
     add("k", state.condition);
   }
+  const profileA = normalizeProfileId(state.municipalProfileA);
+  if (profileA) {
+    add("pa", profileA);
+  }
+  const profileB = normalizeProfileId(state.municipalProfileB);
+  if (profileB) {
+    add("pb", profileB);
+  }
+  const basket = normalizeBasketId(state.municipalBasket);
+  if (basket) {
+    add("bk", basket);
+  }
+  if (state.cascadeCounts && typeof state.cascadeCounts === "object") {
+    const pairs = CASCADE_SCENARIO_IDS
+      .map((id) => [id, clampCascadeCount(state.cascadeCounts[id])])
+      .filter(([, n]) => n > 0)
+      .map(([id, n]) => `${id}:${n}`);
+    if (pairs.length > 0) {
+      add("cas", pairs.join(","));
+    }
+  }
+  if (Object.hasOwn(WORKBENCH_PRESETS, state.workbenchPreset)) {
+    add("bin", state.workbenchPreset);
+  }
   return parts.length ? `#${parts.join("&")}` : "";
 }
 
@@ -340,6 +366,43 @@ export function decodeShareHash(hash) {
         patch.condition = value;
       } else {
         issues.push(issue("UNKNOWN_CONDITION", "warning", "k", "Share link condition was not recognized."));
+      }
+    } else if (key === "pa" || key === "pb") {
+      const id = normalizeProfileId(value);
+      if (id) {
+        patch[key === "pa" ? "municipalProfileA" : "municipalProfileB"] = id;
+      } else {
+        issues.push(issue("UNKNOWN_PROFILE", "warning", key, "Share link MRF profile was not recognized."));
+      }
+    } else if (key === "bk") {
+      const id = normalizeBasketId(value);
+      if (id) {
+        patch.municipalBasket = id;
+      } else {
+        issues.push(issue("UNKNOWN_BASKET", "warning", "bk", "Share link basket was not recognized."));
+      }
+    } else if (key === "cas") {
+      const counts = {};
+      let malformed = value.trim() === "";
+      for (const piece of value.split(",")) {
+        const match = piece.match(/^([a-z0-9-]+):(\d{1,2})$/);
+        const id = match ? normalizeCascadeId(match[1]) : null;
+        if (!id) {
+          malformed = true;
+          break;
+        }
+        counts[id] = clampCascadeCount(Number(match[2]));
+      }
+      if (malformed) {
+        issues.push(issue("INVALID_CASCADE", "warning", "cas", "Share link cascade counts were not recognized."));
+      } else {
+        patch.cascadeCounts = counts;
+      }
+    } else if (key === "bin") {
+      if (Object.hasOwn(WORKBENCH_PRESETS, value)) {
+        patch.workbenchPreset = value;
+      } else {
+        issues.push(issue("UNKNOWN_PRESET", "warning", "bin", "Share link workbench preset was not recognized."));
       }
     }
   }
