@@ -130,7 +130,7 @@ async function waitFor(sessionId, cdp, expression, timeoutMs = 8000) {
   return false;
 }
 
-async function runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir }) {
+async function runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir, server }) {
   const tag = `${viewport.width}x${viewport.height}`;
   const consoleErrors = [];
   const pageErrors = [];
@@ -165,7 +165,7 @@ async function runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir
     sessionId
   );
   await cdp.send("Page.navigate", { url: `${baseUrl}/index.html` }, sessionId);
-  const loaded = await waitFor(sessionId, cdp, "document.readyState === 'complete' && !!document.querySelector('#municipal-diff-output table')");
+  const loaded = await waitFor(sessionId, cdp, "document.readyState === 'complete' && typeof window.__preOfflineProbe === 'undefined' && !!document.querySelector('#municipal-diff-output table')");
   check(`${tag}: app loads and the diff table renders`, loaded !== false);
 
   const title = await cdp.evaluate(sessionId, "document.title");
@@ -295,15 +295,32 @@ async function runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir
   check(`${tag}: service worker controls the page`, swControlled !== false);
   if (swControlled !== false) {
     await cdp.send("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, sessionId);
-    await cdp.send("Page.reload", { ignoreCache: true }, sessionId);
-    const offlineLoaded = await waitFor(
-      sessionId,
-      cdp,
-      "document.readyState === 'complete' && !!document.querySelector('#municipal-diff-output table')",
-      10000
-    );
+    await cdp.send("Runtime.evaluate", { expression: "window.__preOfflineProbe = true" }, sessionId);
+    const port = server.address().port;
+    if (server.closeAllConnections) server.closeAllConnections();
+    if (server.closeIdleConnections) server.closeIdleConnections();
+    await new Promise((resolve) => server.close(() => resolve()));
+    let offlineLoaded = false;
+    try {
+      await cdp.send("Page.reload", {}, sessionId);
+      offlineLoaded = await waitFor(
+        sessionId,
+        cdp,
+        "document.readyState === 'complete' && typeof window.__preOfflineProbe === 'undefined' && !!document.querySelector('#municipal-diff-output table')",
+        10000
+      );
+    } finally {
+      await new Promise((resolve, reject) => {
+        const onError = (error) => reject(error);
+        server.once("error", onError);
+        server.listen(port, "127.0.0.1", () => {
+          server.off("error", onError);
+          resolve();
+        });
+      });
+      await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, sessionId);
+    }
     check(`${tag}: offline reload renders from the service-worker cache`, offlineLoaded !== false);
-    await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, sessionId);
   }
 
   // A hash-only change is a same-document navigation, so hydrate from a real
@@ -363,7 +380,7 @@ async function main() {
       { width: 1440, height: 900, dsf: 1, mobile: false },
       { width: 390, height: 844, dsf: 3, mobile: true }
     ]) {
-      await runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir });
+      await runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir, server });
     }
 
     const passed = results.filter((r) => r.ok).length;
@@ -375,9 +392,22 @@ async function main() {
     process.exitCode = failed.length === 0 ? 0 : 1;
   } finally {
     chromeProc.kill("SIGKILL");
+    await Promise.race([
+      new Promise((resolve) => chromeProc.once("exit", resolve)),
+      new Promise((resolve) => setTimeout(resolve, 1500))
+    ]);
     server.close();
-    fs.rmSync(profileDir, { recursive: true, force: true });
-    fs.rmSync(downloadDir, { recursive: true, force: true });
+    for (const dir of [profileDir, downloadDir]) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        try {
+          fs.rmSync(dir, { recursive: true, force: true });
+          break;
+        } catch (error) {
+          if (attempt === 7) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 150));
+        }
+      }
+    }
   }
 }
 

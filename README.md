@@ -71,6 +71,7 @@ When people guess and toss questionable items into their curbside cart ("wish-cy
 bincheck/
 |-- index.html                    Web app and printable guide
 |-- styles.css                    Design tokens, components, print and reduced-motion rules
+|-- sw.js                         Offline shell with network-first assets and cache fallback
 |-- DESIGN.md                     Design system notes
 |-- src/
 |   |-- app.js                    UI controller (DOM injected, so it runs under test)
@@ -98,7 +99,7 @@ bincheck/
 |   |-- run-benchmark.js          Benchmark CLI
 |   |-- verify-city-sources.js    Offline and live source verifier
 |   `-- browser-audit.mjs         Zero-dependency headless Chromium audit over CDP
-`-- tests/                        526 tests in sixteen files, plus a stand-in DOM
+`-- tests/                        527 tests in sixteen files, plus a stand-in DOM
 ```
 
 ## Running the tests
@@ -106,7 +107,7 @@ bincheck/
 Requires Node.js 18 or newer. There is nothing to install.
 
 ```bash
-npm test                    # node --test "tests/*.test.js"  (526 tests)
+npm test                    # node --test tests/*.test.js  (527 tests)
 npm run benchmark           # text report with latency
 node scripts/run-benchmark.js --json   # deterministic JSON report
 npm run verify:sources      # check the rules snapshot offline

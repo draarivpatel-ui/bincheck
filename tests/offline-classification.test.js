@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { evaluateItemDisposal, resolveMaterialProfile } from "../src/bincheck-engine.js";
 
-const ROOT = path.join(import.meta.dirname, "..");
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 test("classification: liquid-full #2 HDPE keeps resin #2 instead of collapsing to #1 PET", () => {
@@ -25,7 +26,8 @@ test("classification: liquid-full #1 PET still cites resin #1", () => {
 
 test("offline: service worker precaches every shipped runtime asset that exists", () => {
   const sw = read("sw.js");
-  assert.match(sw, /CACHE_NAME = "bincheck-offline-2026-11-24-v1"/);
+  assert.match(sw, /CACHE_NAME = "bincheck-offline-2026-11-24-v2"/);
+  assert.ok(sw.includes('key.startsWith("bincheck-offline-")'), "activation must not delete other apps' caches");
   const assets = [...sw.matchAll(/"(\.\/[^"]+)"/g)].map((match) => match[1]).filter((asset) => asset !== "./");
   assert.ok(assets.length >= 20);
   for (const asset of assets) {
@@ -36,14 +38,13 @@ test("offline: service worker precaches every shipped runtime asset that exists"
   }
 });
 
-test("offline: service worker is same-origin, GET-only, network-first for pages and cache-first for assets", () => {
+test("offline: service worker is same-origin, GET-only, network-first for pages and runtime assets", () => {
   const sw = read("sw.js");
   assert.ok(sw.includes('request.method !== "GET"'));
   assert.ok(sw.includes("url.origin !== self.location.origin"));
   assert.ok(sw.includes('request.mode === "navigate"'));
   assert.ok(sw.includes("networkFirstPage(request)"));
-  assert.ok(sw.includes("cacheFirstAsset(request)"));
-  assert.ok(sw.includes('cache.match("./index.html", { ignoreSearch: true })'));
+  assert.ok(sw.includes("networkFirstAsset(request)"));
   assert.equal(/https?:\/\//.test(sw), false, "service worker must not depend on an external origin");
 });
 
@@ -59,4 +60,10 @@ test("offline: CSP still forbids external code and the page has no external scri
   assert.match(html, /script-src 'self'/);
   assert.equal([...html.matchAll(/<script[^>]+src="(https?:)?\/\//g)].length, 0);
   assert.equal([...html.matchAll(/<link[^>]+href="(https?:)?\/\//g)].length, 0);
+});
+
+test("offline: non-html navigations cannot overwrite the app shell", () => {
+  const sw = read("sw.js");
+  assert.ok(sw.includes('type.includes("text/html")'));
+  assert.ok(!sw.includes('ignoreSearch: true'));
 });

@@ -557,7 +557,7 @@ export const MATERIAL_CATEGORIES = {
       badgeLabel: "Empty Liquid First, Then Recycle Bottle",
       prepSteps: [
         "Unscrew the cap and pour all leftover liquid down the drain or onto soil.",
-        "Once completely empty, replace the cap and place the #1 PET bottle loose in the Riverside recycling cart.",
+        "Once completely empty, replace the cap and place the empty bottle loose in the Riverside recycling cart.",
         "If you cannot empty the liquid (e.g., spoiled oil or dressing), place the sealed bottle in the trash cart."
       ],
       dropOffNote: "Recyclable curbside only after all liquid is emptied."

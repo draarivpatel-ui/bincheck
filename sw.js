@@ -1,5 +1,5 @@
-/* BinCheck offline shell. Cache-first static assets, network-first page navigations. */
-const CACHE_NAME = "bincheck-offline-2026-11-24-v1";
+/* BinCheck offline shell. Network-first runtime assets with offline fallback. */
+const CACHE_NAME = "bincheck-offline-2026-11-24-v2";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -38,7 +38,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("bincheck-offline-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -47,26 +47,31 @@ async function networkFirstPage(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const fresh = await fetch(request);
-    if (fresh && fresh.ok) {
-      await cache.put("./index.html", fresh.clone());
+    const type = fresh && fresh.headers ? fresh.headers.get("content-type") || "" : "";
+    if (fresh && fresh.ok && type.includes("text/html")) {
+      cache.put("./index.html", fresh.clone()).catch(() => {});
     }
     return fresh;
   } catch (_) {
-    const cached = await cache.match("./index.html", { ignoreSearch: true });
+    const cached = await cache.match("./index.html");
     if (cached) return cached;
     throw _;
   }
 }
 
-async function cacheFirstAsset(request) {
-  const cached = await caches.match(request, { ignoreSearch: true });
-  if (cached) return cached;
-  const fresh = await fetch(request);
-  if (fresh && fresh.ok && new URL(request.url).origin === self.location.origin) {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.put(request, fresh.clone());
+async function networkFirstAsset(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const fresh = await fetch(request);
+    if (fresh && fresh.ok && new URL(request.url).origin === self.location.origin) {
+      cache.put(request, fresh.clone()).catch(() => {});
+    }
+    return fresh;
+  } catch (_) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw _;
   }
-  return fresh;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -78,5 +83,5 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirstPage(request));
     return;
   }
-  event.respondWith(cacheFirstAsset(request));
+  event.respondWith(networkFirstAsset(request));
 });
