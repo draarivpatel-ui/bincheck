@@ -990,6 +990,7 @@ export function resolveMaterialProfile(query = {}) {
   let barcodeResult = null;
   let resolvedProduct = null;
   let materialId = query.materialId || null;
+  let liquidSourceResinCode = null;
 
   if (query.barcode) {
     barcodeResult = lookupProductByBarcode(query.barcode);
@@ -1009,6 +1010,7 @@ export function resolveMaterialProfile(query = {}) {
   }
 
   if (query.condition === "liquid-full" && (materialId === "resin-1-pet" || materialId === "resin-2-hdpe")) {
+    liquidSourceResinCode = MATERIAL_CATEGORIES[materialId].resinCode;
     materialId = "liquid-full-bottle";
   } else if (query.condition === "broken" && materialId === "glass-jar-bottle") {
     materialId = "broken-glass-ceramic";
@@ -1018,9 +1020,12 @@ export function resolveMaterialProfile(query = {}) {
     return { category: SOILED_FIBER_PROFILE, barcodeResult, resolvedProduct };
   }
 
-  const category = Object.hasOwn(MATERIAL_CATEGORIES, materialId)
+  const baseCategory = Object.hasOwn(MATERIAL_CATEGORIES, materialId)
     ? MATERIAL_CATEGORIES[materialId]
     : MATERIAL_CATEGORIES["resin-1-pet"];
+  const category = liquidSourceResinCode !== null
+    ? { ...baseCategory, resinCode: liquidSourceResinCode, sourceMaterialId: materialId === "liquid-full-bottle" ? `resin-${liquidSourceResinCode}-${liquidSourceResinCode === 1 ? "pet" : "hdpe"}` : materialId }
+    : baseCategory;
   return {
     category,
     barcodeResult,

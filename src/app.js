@@ -73,6 +73,19 @@ const DEMO_SCENARIOS = {
 
 export { DEMO_SCENARIOS };
 
+function registerOfflineCache(win) {
+  const nav = win && win.navigator;
+  if (!nav || !nav.serviceWorker || !win.location || !/^https?:$/.test(win.location.protocol)) {
+    return false;
+  }
+  nav.serviceWorker.register("./sw.js").catch(() => {
+    // Offline caching is an enhancement. A denied or unsupported registration
+    // never blocks the fully local rules engine already running in the page.
+  });
+  return true;
+}
+
+
 /** One-click guided demos wired to the three walkthrough cards in index.html. */
 export const GUIDED_DEMOS = {
   "city-flip": { scenario: "styrofoam", scrollTarget: "result-panel-card" },
@@ -970,6 +983,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     if (heroImg.complete) heroFrame.classList.toggle("img-fallback-active", heroImg.naturalWidth === 0);
   }
 
+  registerOfflineCache(win);
   renderSearch();
   render();
 
