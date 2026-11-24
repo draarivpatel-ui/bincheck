@@ -283,6 +283,29 @@ async function runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir
     check(`${tag}: ${action} downloads a ${ext} file`, file !== null, file || "no file");
   }
 
+  // Offline reliability is part of the product promise, not just the presence
+  // of sw.js: prove that the active worker controls the page and can serve a
+  // full reload while Chrome is emulating an offline network.
+  const swControlled = await waitFor(
+    sessionId,
+    cdp,
+    `Boolean(navigator.serviceWorker && navigator.serviceWorker.controller)`,
+    10000
+  );
+  check(`${tag}: service worker controls the page`, swControlled !== false);
+  if (swControlled !== false) {
+    await cdp.send("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, sessionId);
+    await cdp.send("Page.reload", { ignoreCache: true }, sessionId);
+    const offlineLoaded = await waitFor(
+      sessionId,
+      cdp,
+      "document.readyState === 'complete' && !!document.querySelector('#municipal-diff-output table')",
+      10000
+    );
+    check(`${tag}: offline reload renders from the service-worker cache`, offlineLoaded !== false);
+    await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, sessionId);
+  }
+
   // A hash-only change is a same-document navigation, so hydrate from a real
   // fresh load via about:blank to exercise the bookmark path honestly.
   await cdp.send("Page.navigate", { url: "about:blank" }, sessionId);

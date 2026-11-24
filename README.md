@@ -98,7 +98,7 @@ bincheck/
 |   |-- run-benchmark.js          Benchmark CLI
 |   |-- verify-city-sources.js    Offline and live source verifier
 |   `-- browser-audit.mjs         Zero-dependency headless Chromium audit over CDP
-`-- tests/                        519 tests in fifteen files, plus a stand-in DOM
+`-- tests/                        526 tests in sixteen files, plus a stand-in DOM
 ```
 
 ## Running the tests
@@ -106,7 +106,7 @@ bincheck/
 Requires Node.js 18 or newer. There is nothing to install.
 
 ```bash
-npm test                    # node --test tests/  (519 tests)
+npm test                    # node --test "tests/*.test.js"  (526 tests)
 npm run benchmark           # text report with latency
 node scripts/run-benchmark.js --json   # deterministic JSON report
 npm run verify:sources      # check the rules snapshot offline
