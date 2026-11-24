@@ -344,6 +344,15 @@ test("evidence: contradictory resin stamps lower confidence for catalog and sele
   assert.ok(!fullJug.issues.some((entry) => entry.code === "RESIN_MATERIAL_CONFLICT"));
 });
 
+test("evidence: resin conflict message names the identified resin or its absence", () => {
+  const glassIssue = assessEvidence({ materialId: "glass-jar-bottle", resinCode: 1 })
+    .issues.find((entry) => entry.code === "RESIN_MATERIAL_CONFLICT");
+  assert.match(glassIssue.message, /no plastic resin code/);
+  const ppIssue = assessEvidence({ materialId: "resin-5-pp", resinCode: 3 })
+    .issues.find((entry) => entry.code === "RESIN_MATERIAL_CONFLICT");
+  assert.match(ppIssue.message, /resin code 5/);
+});
+
 test("validation: prototype property names cannot identify a material or enter a share patch", () => {
   for (const token of ["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty", "isPrototypeOf"]) {
     assert.equal(normalizeMaterialToken(token), null, token);
