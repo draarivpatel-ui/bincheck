@@ -501,9 +501,10 @@ test("ui: the help dialog marks single-key shortcuts off whenever the toggle cha
   headerToggle.checked = false;
   dom.change(headerToggle);
   const offRows = list.innerHTML.match(/<li class="shortcut-off">/g) || [];
-  assert.equal(offRows.length, 10, "every printable single-key row is marked off");
+  assert.equal(offRows.length, 11, "every printable single-key row is marked off");
   assert.match(list.innerHTML, /<li class="shortcut-off"><kbd>d<\/kbd>/, "D is marked off");
   assert.match(list.innerHTML, /<li class="shortcut-off"><kbd>p<\/kbd>/, "P is marked off");
+  assert.match(list.innerHTML, /<li class="shortcut-off"><kbd>l<\/kbd>/, "L is marked off");
   assert.match(list.innerHTML, /<li><kbd>Esc<\/kbd>/, "Escape is never marked off");
   assert.match(list.innerHTML, /class="shortcut-state">off</, "the off state is written out");
 

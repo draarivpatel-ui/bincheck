@@ -26,8 +26,6 @@ const CHROME_CANDIDATES = [
   "/usr/bin/google-chrome",
   "/usr/bin/chromium-browser"
 ];
-const CDP_PORT = 9367;
-
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -69,8 +67,8 @@ function serve() {
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
 }
 
-async function cdpHttp(endpoint) {
-  const res = await fetch(`http://127.0.0.1:${CDP_PORT}${endpoint}`);
+async function cdpHttp(port, endpoint) {
+  const res = await fetch(`http://127.0.0.1:${port}${endpoint}`);
   return res.json();
 }
 
@@ -123,6 +121,35 @@ class Cdp {
     }
     return result.result?.value;
   }
+}
+
+/** Reads the ephemeral CDP port Chrome picked from the DevToolsActivePort file. */
+async function readActivePort(profileDir, timeoutMs = 15000) {
+  const file = path.join(profileDir, "DevToolsActivePort");
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const [portLine] = fs.readFileSync(file, "utf8").split("\n");
+      const port = Number(portLine);
+      if (Number.isInteger(port) && port > 0) return port;
+    } catch {}
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return 0;
+}
+
+/** Real pointer click through the input pipeline at an element's center. */
+async function realClick(cdp, sessionId, selector) {
+  const rect = await cdp.evaluate(
+    sessionId,
+    `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`
+  );
+  if (!rect) return false;
+  const opts = { x: rect.x, y: rect.y, button: "left", clickCount: 1 };
+  await cdp.send("Input.dispatchMouseEvent", { ...opts, type: "mouseMoved" }, sessionId);
+  await cdp.send("Input.dispatchMouseEvent", { ...opts, type: "mousePressed" }, sessionId);
+  await cdp.send("Input.dispatchMouseEvent", { ...opts, type: "mouseReleased" }, sessionId);
+  return true;
 }
 
 async function waitFor(sessionId, cdp, expression, timeoutMs = 8000) {
@@ -338,6 +365,64 @@ async function runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir
   const hydratedA = await cdp.evaluate(sessionId, `document.getElementById('municipal-profile-a').value`);
   check(`${tag}: hydrated profile A is Riverside`, hydratedA === "Riverside-tx");
 
+  // English/Spanish bilingual support: real pointer clicks on the header
+  // toggle, document lang flip, localized chrome + rendered output, a Spanish
+  // search, and persistence across reload.
+  const esClicked = await realClick(cdp, sessionId, '[data-action="set-language"][data-lang="es"]');
+  check(`${tag}: real pointer click lands on the ES toggle`, esClicked === true);
+  const esApplied = await waitFor(
+    sessionId,
+    cdp,
+    `document.documentElement.lang === "es" && /Recicl|Basura|Depósito|Especial|Entrega/.test(document.getElementById('evaluation-output').innerText)`
+  );
+  check(`${tag}: ES click sets document lang and Spanish verdicts`, esApplied !== false);
+  const esChrome = await cdp.evaluate(
+    sessionId,
+    `(() => ({
+      pressed: document.querySelector('[data-lang="es"]').getAttribute("aria-pressed") === "true",
+      heading: document.getElementById('lookup-heading').textContent.trim(),
+      stored: window.localStorage.getItem("bincheck:language"),
+      hashHasLang: window.location.hash.includes("l=es")
+    }))()`
+  );
+  check(`${tag}: ES toggle marked active, heading localized, lang persisted`, esChrome && esChrome.pressed === true && esChrome.stored === "es" && !/Barcode/.test(esChrome.heading || ""), JSON.stringify(esChrome));
+  check(`${tag}: share hash carries l=es`, esChrome && esChrome.hashHasLang === true);
+
+  const searchBox = await realClick(cdp, sessionId, "#item-search");
+  check(`${tag}: search box accepts a real pointer focus`, searchBox === true);
+  await cdp.send("Input.insertText", { text: "bateria" }, sessionId);
+  const esSearch = await waitFor(
+    sessionId,
+    cdp,
+    `(() => { const t = document.getElementById('search-results').innerText; return t.length > 10 && /Bater|bater/i.test(t); })()`
+  );
+  check(`${tag}: Spanish query finds the lithium battery in Spanish`, esSearch !== false);
+  const esSearchVerdict = await cdp.evaluate(
+    sessionId,
+    `document.getElementById('search-results').innerText`
+  );
+  check(`${tag}: Spanish search results carry localized verdicts`, /Depósito|Entrega|Basura|Recicl/i.test(esSearchVerdict || ""), (esSearchVerdict || "").slice(0, 120));
+
+  const esReloaded = await (async () => {
+    await cdp.send("Page.reload", {}, sessionId);
+    return waitFor(sessionId, cdp, `document.readyState === 'complete' && document.documentElement.lang === "es" && !!document.querySelector('#municipal-diff-output table')`, 10000);
+  })();
+  check(`${tag}: Spanish persists across a real reload`, esReloaded !== false);
+
+  const enClicked = await realClick(cdp, sessionId, '[data-action="set-language"][data-lang="en"]');
+  check(`${tag}: real pointer click lands on the EN toggle`, enClicked === true);
+  const enApplied = await waitFor(
+    sessionId,
+    cdp,
+    `document.documentElement.lang === "en" && /Barcode|Inspector/.test(document.getElementById('lookup-heading').innerText)`
+  );
+  check(`${tag}: EN click restores English chrome and lang`, enApplied !== false);
+  const enOverflow = await cdp.evaluate(
+    sessionId,
+    `(() => { const de = document.documentElement; return de.scrollWidth - de.clientWidth; })()`
+  );
+  check(`${tag}: no horizontal overflow after round-trip`, enOverflow === 0, `scrollWidth-clientWidth=${enOverflow}`);
+
   check(`${tag}: zero uncaught page errors`, pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
   check(`${tag}: zero console errors`, consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
   check(`${tag}: zero external network requests`, externalRequests.length === 0, externalRequests.slice(0, 3).join(" | "));
@@ -362,16 +447,18 @@ async function main() {
     "--disable-extensions",
     "--disable-background-networking",
     `--user-data-dir=${profileDir}`,
-    `--remote-debugging-port=${CDP_PORT}`,
+    "--remote-debugging-port=0",
     "about:blank"
   ], { stdio: ["ignore", "ignore", "pipe"] });
   let chromeErr = "";
   chromeProc.stderr.on("data", (chunk) => { chromeErr += chunk; });
 
   try {
+    const cdpPort = await readActivePort(profileDir);
+    if (!cdpPort) throw new Error(`chrome did not open the debugging port. ${chromeErr.slice(0, 300)}`);
     let targets = null;
     for (let i = 0; i < 60 && !targets; i += 1) {
-      try { targets = await cdpHttp("/json/version"); } catch { await new Promise((r) => setTimeout(r, 250)); }
+      try { targets = await cdpHttp(cdpPort, "/json/version"); } catch { await new Promise((r) => setTimeout(r, 250)); }
     }
     if (!targets) throw new Error(`chrome did not open the debugging port. ${chromeErr.slice(0, 300)}`);
 

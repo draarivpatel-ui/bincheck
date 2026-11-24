@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <a class="skip-link" href="#main-content"><span data-i18n="skip.link">Skip to main content</span></a>
   <noscript>
     <div class="noscript-banner" role="alert">
       <strong>JavaScript Required for Interactive GS1 Barcode &amp; MRF Simulator:</strong> Enable JavaScript to run live GS1 Modulo-10 barcode verification and batch cart scoring. The full Riverside vs. Houston 1-Page Kitchen &amp; Garage Sorting Matrix remains available below.
@@ -36,12 +36,20 @@
             <path d="M7 22.5H21" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
           </svg>
           <h1 class="site-title">BinCheck</h1>
-          <span class="spec-index-code tabular" title="Date the bundled Riverside and Houston rules snapshot was last checked against the city sites">Rules 2026-10-20</span>
+          <span class="spec-index-code tabular" data-i18n-title="rules.chipTitle" title="Date the bundled Riverside and Houston rules snapshot was last checked against the city sites"><span data-i18n="rules.badge">Rules</span> 2026-10-20</span>
         </div>
       </div>
 
       <div class="header-actions">
-        <div class="city-switcher" role="group" aria-label="Jurisdiction mode">
+        <div class="city-switcher lang-switcher" role="group" aria-label="Language / Idioma">
+          <button type="button" id="lang-en-btn" class="city-btn lang-btn active" data-action="set-language" data-lang="en" aria-pressed="true">
+            <span class="btn-slide-wrap"><span class="btn-slide-text">EN</span></span>
+          </button>
+          <button type="button" id="lang-es-btn" class="city-btn lang-btn" data-action="set-language" data-lang="es" aria-pressed="false">
+            <span class="btn-slide-wrap"><span class="btn-slide-text">ES</span></span>
+          </button>
+        </div>
+        <div class="city-switcher" role="group" data-i18n-aria="group.jurisdiction" aria-label="Jurisdiction mode">
           <button type="button" class="city-btn active" data-action="set-city" data-city-mode="Riverside-tx" aria-pressed="true" aria-keyshortcuts="s">
             <span class="btn-slide-wrap"><span class="btn-slide-text">Riverside, TX</span></span>
           </button>
@@ -49,7 +57,7 @@
             <span class="btn-slide-wrap"><span class="btn-slide-text">Houston, TX</span></span>
           </button>
           <button type="button" class="city-btn" data-action="set-city" data-city-mode="compare" aria-pressed="false" aria-keyshortcuts="c">
-            <span class="btn-slide-wrap"><span class="btn-slide-text">Side-by-Side Comparison</span></span>
+            <span class="btn-slide-wrap"><span class="btn-slide-text" data-i18n="city.compare">Side-by-Side Comparison</span></span>
           </button>
         </div>
         <button type="button" id="print-cheatsheet-btn" class="secondary-btn print-trigger-btn" data-action="print-guide">
@@ -58,23 +66,23 @@
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
             <rect x="6" y="14" width="12" height="8" />
           </svg>
-          <span>Print 1-Page Kitchen Guide</span>
+          <span data-i18n="header.printGuide">Print 1-Page Kitchen Guide</span>
         </button>
       </div>
     </div>
-    <nav class="container section-nav" aria-label="Page sections">
-      <a class="nav-link" href="#lookup-heading">Inspect an item</a>
-      <a class="nav-link" href="#batch-csv-heading">Batch CSV</a>
-      <a class="nav-link" href="#municipal-diff-heading">Municipal diff</a>
-      <a class="nav-link" href="#cascade-heading">Cascade lab</a>
-      <a class="nav-link" href="#audit-heading">Signed audit</a>
-      <a class="nav-link" href="#selftest-heading">Self-tests</a>
-      <a class="nav-link" href="#benchmark-heading">Benchmark</a>
-      <a class="nav-link" href="#cheatsheet-heading">Kitchen guide</a>
-      <button type="button" id="shortcut-help-btn" class="nav-link nav-help" data-action="open-help" aria-haspopup="dialog" aria-keyshortcuts="?">Shortcuts <kbd>?</kbd></button>
-      <label class="shortcut-toggle" for="shortcuts-toggle" title="Turn the single-letter keyboard shortcuts on or off">
+    <nav class="container section-nav" data-i18n-aria="nav.sections" aria-label="Page sections">
+      <a class="nav-link" href="#lookup-heading" data-i18n="nav.inspect">Inspect an item</a>
+      <a class="nav-link" href="#batch-csv-heading" data-i18n="nav.batch">Batch CSV</a>
+      <a class="nav-link" href="#municipal-diff-heading" data-i18n="nav.diff">Municipal diff</a>
+      <a class="nav-link" href="#cascade-heading" data-i18n="nav.cascade">Cascade lab</a>
+      <a class="nav-link" href="#audit-heading" data-i18n="nav.audit">Signed audit</a>
+      <a class="nav-link" href="#selftest-heading" data-i18n="nav.selftest">Self-tests</a>
+      <a class="nav-link" href="#benchmark-heading" data-i18n="nav.benchmark">Benchmark</a>
+      <a class="nav-link" href="#cheatsheet-heading" data-i18n="nav.guide">Kitchen guide</a>
+      <button type="button" id="shortcut-help-btn" class="nav-link nav-help" data-action="open-help" aria-haspopup="dialog" aria-keyshortcuts="?"><span data-i18n="nav.shortcuts">Shortcuts</span> <kbd>?</kbd></button>
+      <label class="shortcut-toggle" for="shortcuts-toggle" data-i18n-title="nav.shortcutsTitle" title="Turn the single-letter keyboard shortcuts on or off">
         <input type="checkbox" id="shortcuts-toggle" checked />
-        <span>Key shortcuts</span>
+        <span data-i18n="nav.keyShortcuts">Key shortcuts</span>
       </label>
     </nav>
   </header>
@@ -83,26 +91,26 @@
     <section class="swiss-hero no-print" aria-labelledby="hero-statement-heading">
       <div class="hero-copy-col">
         <h2 id="hero-statement-heading" class="hero-display">
-          Stop wish-cycling at the curb. Verify what actually survives the <em class="serif-accent">optical sorter.</em>
+          <span data-i18n="hero.line1">Stop wish-cycling at the curb.</span> <span data-i18n="hero.line2">Verify what actually survives the</span> <em class="serif-accent" data-i18n="hero.accent">optical sorter.</em>
         </h2>
-        <p class="hero-lead">
+        <p class="hero-lead" data-i18n="hero.lead">
           Crossing the city limit between Riverside (Republic Services and the county County Recycling Center on Blume Rd) and Houston (SWMD and Westpark) changes which plastics, yard bags, and foam blocks are accepted. Inspect any product by GS1 barcode, SPI polymer stamp, or physical contamination state before it jams a star-screen shaft.
         </p>
         <dl class="spec-telemetry-strip">
           <div class="telemetry-cell">
-            <dt>Demo barcode catalog</dt>
+            <dt data-i18n="stats.catalog">Demo barcode catalog</dt>
             <dd class="tabular" id="stat-barcodes">28 GS1 codes</dd>
           </div>
           <div class="telemetry-cell">
-            <dt>Polymer Mold Codes</dt>
+            <dt data-i18n="stats.resin">Polymer Mold Codes</dt>
             <dd class="tabular">#1 - #7 SPI</dd>
           </div>
           <div class="telemetry-cell">
-            <dt>Material Profiles</dt>
+            <dt data-i18n="stats.materials">Material Profiles</dt>
             <dd class="tabular" id="stat-materials">17 Streams</dd>
           </div>
           <div class="telemetry-cell">
-            <dt>Ordinance Jurisdictions</dt>
+            <dt data-i18n="stats.cities">Ordinance Jurisdictions</dt>
             <dd class="tabular" id="stat-cities">2 Cities</dd>
           </div>
         </dl>
@@ -113,6 +121,7 @@
           <img
             src="./img/hero-materials.png"
             alt="Municipal material specification overview showing PET bottles, HDPE jugs, corrugated cardboard, and SPI resin stamps"
+            data-i18n-alt="hero.imgAlt"
             class="hero-plate-img"
           />
           <div class="schematic-svg-plate" aria-hidden="true">
@@ -163,66 +172,66 @@
     </section>
 
     <section class="guided-rail card no-print" aria-labelledby="guided-heading">
-      <h2 id="guided-heading">Try it in three clicks</h2>
+      <h2 id="guided-heading" data-i18n="guided.heading">Try it in three clicks</h2>
       <div class="guided-grid">
         <button type="button" class="guided-card" data-action="guided-demo" data-guided="city-flip">
           <span class="guided-step tabular">1</span>
-          <span class="guided-name">Watch a city line flip the verdict</span>
-          <span class="guided-desc">The same #6 foam cup goes to a county drop-off in Riverside but the trash cart in Houston.</span>
+          <span class="guided-name" data-i18n="guided.cityFlip.name">Watch a city line flip the verdict</span>
+          <span class="guided-desc" data-i18n="guided.cityFlip.desc">The same #6 foam cup goes to a county drop-off in Riverside but the trash cart in Houston.</span>
         </button>
         <button type="button" class="guided-card" data-action="guided-demo" data-guided="contamination-trap">
           <span class="guided-step tabular">2</span>
-          <span class="guided-name">Load a contamination trap</span>
-          <span class="guided-desc">One lithium battery inside 30 clean bottles shows why the average hides the hazard.</span>
+          <span class="guided-name" data-i18n="guided.trap.name">Load a contamination trap</span>
+          <span class="guided-desc" data-i18n="guided.trap.desc">One lithium battery inside 30 clean bottles shows why the average hides the hazard.</span>
         </button>
         <button type="button" class="guided-card" data-action="guided-demo" data-guided="csv-audit">
           <span class="guided-step tabular">3</span>
-          <span class="guided-name">Audit a synthetic household CSV</span>
-          <span class="guided-desc">Nine illustrative rows scored per city, with the share that is cart-eligible.</span>
+          <span class="guided-name" data-i18n="guided.csv.name">Audit a synthetic household CSV</span>
+          <span class="guided-desc" data-i18n="guided.csv.desc">Nine illustrative rows scored per city, with the share that is cart-eligible.</span>
         </button>
       </div>
     </section>
 
     <section class="demo-bar card no-print" aria-labelledby="quick-demo-heading">
       <div class="demo-header">
-        <h2 id="quick-demo-heading">Find any item</h2>
+        <h2 id="quick-demo-heading" data-i18n="search.heading">Find any item</h2>
         <span id="search-count" class="mono-tag tabular" aria-live="polite">45 items</span>
       </div>
       <div class="search-box" role="search">
-        <label for="item-search" class="sr-only">Search the demo catalog and material categories</label>
+        <label for="item-search" class="sr-only" data-i18n="search.srLabel">Search the demo catalog and material categories</label>
         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="item-search" type="search" class="search-input" placeholder="Type glass, pizza, battery, foam, Topo Chico..." autocomplete="off" spellcheck="false" aria-controls="search-results" aria-describedby="search-count" />
+        <input id="item-search" type="search" class="search-input" data-i18n-ph="search.placeholder" placeholder="Type glass, pizza, battery, foam, Topo Chico..." autocomplete="off" spellcheck="false" aria-controls="search-results" aria-describedby="search-count" />
       </div>
       <div id="search-results" class="search-results"></div>
-      <h3 class="demo-subheading">Or try a common item</h3>
+      <h3 class="demo-subheading" data-i18n="demo.subheading">Or try a common item</h3>
       <div class="demo-buttons">
         <button type="button" class="demo-pill" data-action="demo" data-demo="pet-bottle">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4v3l3 4v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9l3-4V2z"/><line x1="7" y1="13" x2="17" y2="13"/></svg>
-          <span>Try #1 PET Water Bottle</span>
+          <span data-i18n="demo.pet">Try #1 PET Water Bottle</span>
         </button>
         <button type="button" class="demo-pill" data-action="demo" data-demo="pizza-box">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-          <span>Try Greasy Pizza Box</span>
+          <span data-i18n="demo.pizza">Try Greasy Pizza Box</span>
         </button>
         <button type="button" class="demo-pill" data-action="demo" data-demo="glass-jar">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="3" rx="1"/><path d="M7 6h10l1 4v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-9l1-4z"/></svg>
-          <span>Try Glass Jar (Riverside vs Houston)</span>
+          <span data-i18n="demo.glass">Try Glass Jar (Riverside vs Houston)</span>
         </button>
         <button type="button" class="demo-pill" data-action="demo" data-demo="plastic-bag">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          <span>Try Plastic Grocery Bag</span>
+          <span data-i18n="demo.bag">Try Plastic Grocery Bag</span>
         </button>
         <button type="button" class="demo-pill" data-action="demo" data-demo="lithium-battery">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="16" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/><polyline points="11 10 8 12 12 12 9 14"/></svg>
-          <span>Try Lithium Battery</span>
+          <span data-i18n="demo.battery">Try Lithium Battery</span>
         </button>
         <button type="button" class="demo-pill" data-action="demo" data-demo="styrofoam">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14l-1.5 15a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8L5 4z"/><line x1="3" y1="4" x2="21" y2="4"/></svg>
-          <span>Try #6 Styrofoam Cup</span>
+          <span data-i18n="demo.foam">Try #6 Styrofoam Cup</span>
         </button>
         <button type="button" class="demo-pill" data-action="demo" data-demo="yard-waste">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
-          <span>Try Yard Trimmings Bag</span>
+          <span data-i18n="demo.yard">Try Yard Trimmings Bag</span>
         </button>
       </div>
     </section>
@@ -230,13 +239,13 @@
     <div class="workspace-grid no-print">
       <section class="card controls-panel" aria-labelledby="lookup-heading">
         <div class="panel-heading-bar">
-          <h2 id="lookup-heading">Barcode, Resin Code &amp; Material Inspector</h2>
+          <h2 id="lookup-heading" data-i18n="panel.inspector">Barcode, Resin Code &amp; Material Inspector</h2>
           <span class="mono-tag tabular">GS1 MOD-10</span>
         </div>
 
         <div class="control-group barcode-scanner-deck" id="scanner-deck">
           <div class="scanner-laser-line" id="scanner-laser-line" aria-hidden="true"></div>
-          <label for="barcode-input" class="field-label">GS1 Barcode Lookup (UPC-A 12-Digit or EAN-13)</label>
+          <label for="barcode-input" class="field-label" data-i18n="field.barcode">GS1 Barcode Lookup (UPC-A 12-Digit or EAN-13)</label>
           <div class="barcode-row">
             <div class="barcode-input-wrap">
               <svg class="barcode-prefix-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
@@ -247,6 +256,7 @@
                 type="text"
                 inputmode="numeric"
                 placeholder="e.g. 041220576463 (H-E-B Spring Water)"
+                data-i18n-ph="barcode.placeholder"
                 autocomplete="off"
                 autocapitalize="off"
                 spellcheck="false"
@@ -258,34 +268,34 @@
               />
             </div>
             <button type="button" id="barcode-scan-btn" class="primary-btn" data-action="commit-barcode">
-              <span class="btn-slide-wrap"><span class="btn-slide-text">Verify UPC</span></span>
+              <span class="btn-slide-wrap"><span class="btn-slide-text" data-i18n="btn.verifyUpc">Verify UPC</span></span>
             </button>
-            <button type="button" id="camera-scan-btn" class="secondary-btn" data-action="camera-start" title="Scan barcode with device camera">
+            <button type="button" id="camera-scan-btn" class="secondary-btn" data-action="camera-start" data-i18n-title="camera.title" title="Scan barcode with device camera">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
-              <span>Camera Scan</span>
+              <span data-i18n="btn.cameraScan">Camera Scan</span>
             </button>
           </div>
           <div id="barcode-status" class="barcode-status tabular" role="status" aria-live="polite"></div>
           <div id="barcode-math-strip" class="barcode-math-strip tabular"></div>
           <div id="camera-preview-wrap" class="camera-preview-wrap hidden">
             <video id="camera-video" playsinline muted></video>
-            <button type="button" id="camera-close-btn" class="secondary-btn" data-action="camera-stop">Stop Camera</button>
+            <button type="button" id="camera-close-btn" class="secondary-btn" data-action="camera-stop" data-i18n="btn.cameraStop">Stop Camera</button>
           </div>
         </div>
 
         <div class="control-group">
-          <label for="catalog-select" class="field-label">Or pick from the demo catalog <span class="data-badge is-demo" title="Every code passes the GS1 check digit. Product pairings are illustrative, not scanned from shelves.">Demo data</span></label>
+          <label for="catalog-select" class="field-label"><span data-i18n="catalog.label">Or pick from the demo catalog</span> <span class="data-badge is-demo" data-i18n-title="catalog.badgeTitle" title="Every code passes the GS1 check digit. Product pairings are illustrative, not scanned from shelves."><span data-i18n="catalog.badge">Demo data</span></span></label>
           <select id="catalog-select" class="select-input tabular">
-            <option value="">Choose a catalog barcode</option>
+            <option value="" data-i18n="catalog.choose">Choose a catalog barcode</option>
           </select>
         </div>
 
         <div class="control-group">
-          <span class="field-label">SPI Plastic Resin Identification Code (#1 to #7)</span>
-          <div class="resin-grid" role="group" aria-label="SPI Resin Codes">
+          <span class="field-label" data-i18n="resin.label">SPI Plastic Resin Identification Code (#1 to #7)</span>
+          <div class="resin-grid" role="group" data-i18n-aria="resin.groupAria" aria-label="SPI Resin Codes">
             <button type="button" class="resin-btn active" data-action="select-resin" data-resin="1" aria-pressed="true">
               <svg class="resin-triangle-svg" width="28" height="26" viewBox="0 0 32 30" fill="none" aria-hidden="true">
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
@@ -333,14 +343,14 @@
                 <path d="M16 3L28 25H4L16 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
               </svg>
               <span class="resin-num tabular">#7</span>
-              <span class="resin-name">Other</span>
+              <span class="resin-name" data-i18n="resin.other">Other</span>
             </button>
           </div>
         </div>
 
         <div class="control-row-split">
           <div class="control-group">
-            <label for="material-select" class="field-label">Material / Item Category</label>
+            <label for="material-select" class="field-label" data-i18n="field.material">Material / Item Category</label>
             <select id="material-select" class="select-input">
               <option value="resin-1-pet">#1 PET Plastic Bottle / Jug</option>
               <option value="resin-2-hdpe">#2 HDPE Milk or Detergent Jug</option>
@@ -363,7 +373,7 @@
           </div>
 
           <div class="control-group">
-            <label for="condition-select" class="field-label">Item Condition</label>
+            <label for="condition-select" class="field-label" data-i18n="field.condition">Item Condition</label>
             <select id="condition-select" class="select-input">
               <option value="clean">Empty, Clean &amp; Dry</option>
               <option value="greasy">Food or Grease Stained</option>
@@ -379,32 +389,32 @@
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span>Add Current Item to Virtual Cart <kbd>A</kbd></span>
+            <span><span data-i18n="btn.addCart">Add Current Item to Virtual Cart</span> <kbd>A</kbd></span>
           </button>
-          <button type="button" id="clear-batch-btn" class="text-btn" data-action="clear-cart">Reset Virtual Cart</button>
+          <button type="button" id="clear-batch-btn" class="text-btn" data-action="clear-cart" data-i18n="btn.resetCart">Reset Virtual Cart</button>
         </div>
       </section>
 
       <section class="card result-panel" id="result-panel-card" aria-labelledby="result-heading">
-        <h2 id="result-heading" class="sr-only">Inspection result</h2>
+        <h2 id="result-heading" class="sr-only" data-i18n="result.srHeading">Inspection result</h2>
         <p id="result-live" class="sr-only" role="status" aria-live="polite"></p>
         <div id="evaluation-output"></div>
         <div class="result-actions no-print">
           <button type="button" id="export-report-csv-btn" class="secondary-btn" data-action="export-report-csv">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Download report CSV</span>
+            <span data-i18n="btn.reportCsv">Download report CSV</span>
           </button>
           <button type="button" id="export-report-json-btn" class="secondary-btn" data-action="export-report-json" aria-keyshortcuts="d">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Download report JSON <kbd>D</kbd></span>
+            <span><span data-i18n="btn.reportJson">Download report JSON</span> <kbd>D</kbd></span>
           </button>
           <button type="button" id="share-link-btn" class="secondary-btn" data-action="copy-link">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            <span>Copy share link</span>
+            <span data-i18n="btn.share">Copy share link</span>
           </button>
           <button type="button" id="print-report-btn" class="secondary-btn" data-action="print-report" aria-keyshortcuts="p">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            <span>Print inspection report <kbd>P</kbd></span>
+            <span><span data-i18n="btn.printReport">Print inspection report</span> <kbd>P</kbd></span>
           </button>
         </div>
       </section>
@@ -413,7 +423,7 @@
     <section class="card batch-panel no-print" aria-labelledby="batch-heading">
       <div class="batch-header">
         <div>
-          <h2 id="batch-heading">Virtual cart</h2>
+          <h2 id="batch-heading" data-i18n="cart.heading">Virtual cart</h2>
         </div>
         <div id="batch-summary-badge" class="stream-badge tabular" role="status" aria-live="polite"></div>
       </div>
@@ -422,16 +432,16 @@
 
     <section class="card impact-panel no-print" aria-labelledby="impact-heading">
       <div class="batch-header">
-        <h2 id="impact-heading">Contamination calculator</h2>
+        <h2 id="impact-heading" data-i18n="impact.heading">Contamination calculator</h2>
         <span id="impact-item-label" class="mono-tag tabular">Current item</span>
       </div>
       <div class="impact-layout">
         <div class="impact-controls">
-          <label class="field-label" for="impact-clean">Clean #1 PET bottles in the cart: <strong id="impact-clean-value" class="tabular">20</strong></label>
+          <label class="field-label" for="impact-clean"><span data-i18n="impact.cleanLabel">Clean #1 PET bottles in the cart:</span> <strong id="impact-clean-value" class="tabular">20</strong></label>
           <input id="impact-clean" type="range" min="0" max="40" step="1" value="20" class="impact-range" />
-          <label class="field-label" for="impact-count">Copies of the current item: <strong id="impact-count-value" class="tabular">1</strong></label>
+          <label class="field-label" for="impact-count"><span data-i18n="impact.countLabel">Copies of the current item:</span> <strong id="impact-count-value" class="tabular">1</strong></label>
           <input id="impact-count" type="range" min="0" max="5" step="1" value="1" class="impact-range" />
-          <p class="impact-note">Pick any item above, then drag. Every number comes from the same rules engine and thresholds as the cart.</p>
+          <p class="impact-note" data-i18n="impact.note">Pick any item above, then drag. Every number comes from the same rules engine and thresholds as the cart.</p>
         </div>
         <div id="impact-output" class="impact-output" aria-live="polite"></div>
       </div>
@@ -440,30 +450,30 @@
     <section class="card batch-csv-panel no-print" aria-labelledby="batch-csv-heading">
       <div class="batch-header">
         <div>
-          <h2 id="batch-csv-heading">Batch CSV inspection</h2>
+          <h2 id="batch-csv-heading" data-i18n="csv.heading">Batch CSV inspection</h2>
         </div>
-        <span class="mono-tag tabular">Up to 500 rows, 256 KB</span>
+        <span class="mono-tag tabular" data-i18n="csv.tag">Up to 500 rows, 256 KB</span>
       </div>
       <div class="csv-grid">
         <div class="csv-input-col">
-          <label for="csv-input" class="field-label">Paste CSV text</label>
+          <label for="csv-input" class="field-label" data-i18n="csv.pasteLabel">Paste CSV text</label>
           <textarea id="csv-input" class="csv-textarea tabular" rows="9" spellcheck="false" autocomplete="off" aria-describedby="csv-help" aria-keyshortcuts="b" placeholder="label,barcode,material,resin,condition"></textarea>
-          <p id="csv-help" class="field-help">Columns: label, barcode, material, resin, condition. A header row is optional; without one, columns are read as barcode, material, resin, condition, label. Material uses ids like resin-1-pet or glass-jar-bottle. Lines starting with # are ignored. Rows BinCheck cannot identify are listed as errors and never guessed. The bundled sample is an illustrative synthetic dataset, not real household records. Ctrl+Enter (or Cmd+Enter) inside the box runs the inspection.</p>
+          <p id="csv-help" class="field-help" data-i18n="csv.help">Columns: label, barcode, material, resin, condition. A header row is optional; without one, columns are read as barcode, material, resin, condition, label. Material uses ids like resin-1-pet or glass-jar-bottle. Lines starting with # are ignored. Rows BinCheck cannot identify are listed as errors and never guessed. The bundled sample is an illustrative synthetic dataset, not real household records. Ctrl+Enter (or Cmd+Enter) inside the box runs the inspection.</p>
           <div class="csv-actions">
-            <button type="button" id="csv-run-btn" class="primary-btn" data-action="run-batch" aria-keyshortcuts="Control+Enter">Run inspection</button>
-            <button type="button" id="csv-sample-btn" class="secondary-btn" data-action="load-sample">Load synthetic sample</button>
-            <button type="button" id="csv-clear-btn" class="text-btn" data-action="clear-batch">Clear</button>
+            <button type="button" id="csv-run-btn" class="primary-btn" data-action="run-batch" aria-keyshortcuts="Control+Enter" data-i18n="btn.runInspection">Run inspection</button>
+            <button type="button" id="csv-sample-btn" class="secondary-btn" data-action="load-sample" data-i18n="btn.loadSample">Load synthetic sample</button>
+            <button type="button" id="csv-clear-btn" class="text-btn" data-action="clear-batch" data-i18n="btn.clear">Clear</button>
           </div>
-          <label for="csv-file-input" class="field-label file-label">Or choose a CSV file</label>
+          <label for="csv-file-input" class="field-label file-label" data-i18n="csv.fileLabel">Or choose a CSV file</label>
           <input type="file" id="csv-file-input" class="file-input" accept=".csv,text/csv,text/plain" />
         </div>
         <div class="csv-output-col">
           <div id="csv-results" class="csv-results" aria-live="polite">
-            <p class="empty-batch-msg">No batch yet. Load the sample or paste your own rows, then choose Run inspection.</p>
+            <p class="empty-batch-msg" data-i18n="csv.empty">No batch yet. Load the sample or paste your own rows, then choose Run inspection.</p>
           </div>
           <div class="export-actions">
-            <button type="button" id="export-csv-btn" class="secondary-btn" data-action="export-csv" disabled>Download results CSV</button>
-            <button type="button" id="export-json-btn" class="secondary-btn" data-action="export-json" disabled>Download results JSON</button>
+            <button type="button" id="export-csv-btn" class="secondary-btn" data-action="export-csv" disabled data-i18n="btn.resultsCsv">Download results CSV</button>
+            <button type="button" id="export-json-btn" class="secondary-btn" data-action="export-json" disabled data-i18n="btn.resultsJson">Download results JSON</button>
           </div>
         </div>
       </div>
@@ -472,29 +482,29 @@
     <section class="card benchmark-panel no-print" aria-labelledby="benchmark-heading">
       <div class="batch-header">
         <div>
-          <h2 id="benchmark-heading">Calibration benchmark</h2>
+          <h2 id="benchmark-heading" data-i18n="bench.heading">Calibration benchmark</h2>
         </div>
         <div class="benchmark-actions">
-          <button type="button" id="benchmark-run-btn" class="primary-btn" data-action="run-benchmark" aria-keyshortcuts="r">Run benchmark <kbd>R</kbd></button>
-          <button type="button" id="benchmark-export-btn" class="secondary-btn" data-action="export-benchmark" disabled>Download report JSON</button>
+          <button type="button" id="benchmark-run-btn" class="primary-btn" data-action="run-benchmark" aria-keyshortcuts="r"><span data-i18n="btn.runBenchmark">Run benchmark</span> <kbd>R</kbd></button>
+          <button type="button" id="benchmark-export-btn" class="secondary-btn" data-action="export-benchmark" disabled data-i18n="btn.benchJson">Download report JSON</button>
         </div>
       </div>
       <div id="benchmark-output" class="benchmark-output" aria-live="polite">
-        <p class="empty-batch-msg">Not run yet. Run it to grade the engine in this tab against ground truth anchored to the city rules snapshot: cart routing, disposal streams, risk tiers, barcode check digits, and latency.</p>
+        <p class="empty-batch-msg" data-i18n="bench.empty">Not run yet. Run it to grade the engine in this tab against ground truth anchored to the city rules snapshot: cart routing, disposal streams, risk tiers, barcode check digits, and latency.</p>
       </div>
     </section>
 
     <section class="card workbench-panel no-print" aria-labelledby="municipal-diff-heading">
       <div class="batch-header">
         <div>
-          <h2 id="municipal-diff-heading">Municipal ruleset diff and diversion comparator</h2>
+          <h2 id="municipal-diff-heading" data-i18n="diff.heading">Municipal ruleset diff and diversion comparator</h2>
         </div>
-        <span class="mono-tag tabular">6 MRF profiles</span>
+        <span class="mono-tag tabular" data-i18n="diff.tag">6 MRF profiles</span>
       </div>
-      <p class="field-help">One basket of tricky household items, scored under two program profiles: the two real city snapshots (Riverside and Houston, from the bundled rules engine) and four illustrative archetypes. Rule-conflict alerts flag anything that is cart-accepted under one profile but contaminating under the other.</p>
+      <p class="field-help" data-i18n="diff.help">One basket of tricky household items, scored under two program profiles: the two real city snapshots (Riverside and Houston, from the bundled rules engine) and four illustrative archetypes. Rule-conflict alerts flag anything that is cart-accepted under one profile but contaminating under the other.</p>
       <div class="workbench-controls">
         <div class="control-group">
-          <label for="municipal-profile-a" class="field-label">Profile A</label>
+          <label for="municipal-profile-a" class="field-label" data-i18n="field.profileA">Profile A</label>
           <select id="municipal-profile-a" class="select-input">
             <option value="Riverside-tx">Riverside, TX (real snapshot)</option>
             <option value="houston-tx">Houston, TX (real snapshot)</option>
@@ -505,7 +515,7 @@
           </select>
         </div>
         <div class="control-group">
-          <label for="municipal-profile-b" class="field-label">Profile B</label>
+          <label for="municipal-profile-b" class="field-label" data-i18n="field.profileB">Profile B</label>
           <select id="municipal-profile-b" class="select-input">
             <option value="Riverside-tx">Riverside, TX (real snapshot)</option>
             <option value="houston-tx">Houston, TX (real snapshot)</option>
@@ -516,7 +526,7 @@
           </select>
         </div>
         <div class="control-group">
-          <label for="municipal-basket" class="field-label">Household basket</label>
+          <label for="municipal-basket" class="field-label" data-i18n="field.basket">Household basket</label>
           <select id="municipal-basket" class="select-input">
             <option value="tricky-household">Tricky household basket (14 items)</option>
             <option value="flexible-and-foam">Film, foam and flexibles basket (6 items)</option>
@@ -525,12 +535,12 @@
           </select>
         </div>
       </div>
-      <div class="preset-chips" role="group" aria-label="Workbench presets">
-        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-glass-out"><span>Glass in vs. glass out</span></button>
-        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-organics"><span>Compulsory organics district</span></button>
-        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-rural"><span>City cart vs. rural transfer station</span></button>
-        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="cascade-battery"><span>One battery in the cart</span></button>
-        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="cascade-tangler"><span>Film wraps the star-screens</span></button>
+      <div class="preset-chips" role="group" data-i18n-aria="preset.groupAria" aria-label="Workbench presets">
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-glass-out"><span data-i18n="preset.glass">Glass in vs. glass out</span></button>
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-organics"><span data-i18n="preset.organics">Compulsory organics district</span></button>
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="diff-rural"><span data-i18n="preset.rural">City cart vs. rural transfer station</span></button>
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="cascade-battery"><span data-i18n="preset.battery">One battery in the cart</span></button>
+        <button type="button" class="demo-pill" data-action="apply-preset" data-preset="cascade-tangler"><span data-i18n="preset.tangler">Film wraps the star-screens</span></button>
       </div>
       <div id="municipal-diff-output" aria-live="polite"></div>
     </section>
@@ -538,30 +548,30 @@
     <section class="card cascade-panel-outer no-print" aria-labelledby="cascade-heading">
       <div class="batch-header">
         <div>
-          <h2 id="cascade-heading">Wish-cycling and MRF hazard cascade lab</h2>
+          <h2 id="cascade-heading" data-i18n="cascade.heading">Wish-cycling and MRF hazard cascade lab</h2>
         </div>
-        <button type="button" id="cascade-reset-btn" class="text-btn" data-action="cascade-reset">Reset lab</button>
+        <button type="button" id="cascade-reset-btn" class="text-btn" data-action="cascade-reset" data-i18n="btn.cascadeReset">Reset lab</button>
       </div>
-      <p class="field-help">Feed up to 10 copies of each top contaminant into a load of 20 clean #1 PET bottles. Each deterministic stage engages at a fixed count: the same inputs always produce the same failure path. Sliders drive the physical failure modes documented at real materials recovery facilities.</p>
+      <p class="field-help" data-i18n="cascade.help">Feed up to 10 copies of each top contaminant into a load of 20 clean #1 PET bottles. Each deterministic stage engages at a fixed count: the same inputs always produce the same failure path. Sliders drive the physical failure modes documented at real materials recovery facilities.</p>
       <div class="cascade-controls">
         <div class="control-group">
-          <label class="field-label" for="cas-film-tangler">#4 film and bags: <strong id="casv-film-tangler" class="tabular">0</strong></label>
+          <label class="field-label" for="cas-film-tangler"><span data-i18n="cascade.film">#4 film and bags:</span> <strong id="casv-film-tangler" class="tabular">0</strong></label>
           <input type="range" class="impact-range" id="cas-film-tangler" data-cascade="film-tangler" min="0" max="10" step="1" value="0" aria-describedby="cascade-heading" />
         </div>
         <div class="control-group">
-          <label class="field-label" for="cas-lithium-ignition">Lithium-ion batteries: <strong id="casv-lithium-ignition" class="tabular">0</strong></label>
+          <label class="field-label" for="cas-lithium-ignition"><span data-i18n="cascade.lithium">Lithium-ion batteries:</span> <strong id="casv-lithium-ignition" class="tabular">0</strong></label>
           <input type="range" class="impact-range" id="cas-lithium-ignition" data-cascade="lithium-ignition" min="0" max="10" step="1" value="0" />
         </div>
         <div class="control-group">
-          <label class="field-label" for="cas-liquid-bale">Liquid-filled bottles: <strong id="casv-liquid-bale" class="tabular">0</strong></label>
+          <label class="field-label" for="cas-liquid-bale"><span data-i18n="cascade.liquid">Liquid-filled bottles:</span> <strong id="casv-liquid-bale" class="tabular">0</strong></label>
           <input type="range" class="impact-range" id="cas-liquid-bale" data-cascade="liquid-bale" min="0" max="10" step="1" value="0" />
         </div>
         <div class="control-group">
-          <label class="field-label" for="cas-grease-fiber">Grease-soaked pizza boxes: <strong id="casv-grease-fiber" class="tabular">0</strong></label>
+          <label class="field-label" for="cas-grease-fiber"><span data-i18n="cascade.grease">Grease-soaked pizza boxes:</span> <strong id="casv-grease-fiber" class="tabular">0</strong></label>
           <input type="range" class="impact-range" id="cas-grease-fiber" data-cascade="grease-fiber" min="0" max="10" step="1" value="0" />
         </div>
         <div class="control-group">
-          <label class="field-label" for="cas-sharps-hazmat">Sharps and hazmat items: <strong id="casv-sharps-hazmat" class="tabular">0</strong></label>
+          <label class="field-label" for="cas-sharps-hazmat"><span data-i18n="cascade.sharps">Sharps and hazmat items:</span> <strong id="casv-sharps-hazmat" class="tabular">0</strong></label>
           <input type="range" class="impact-range" id="cas-sharps-hazmat" data-cascade="sharps-hazmat" min="0" max="10" step="1" value="0" />
         </div>
       </div>
@@ -571,24 +581,24 @@
     <section class="card audit-panel-outer no-print" aria-labelledby="audit-heading">
       <div class="batch-header">
         <div>
-          <h2 id="audit-heading">Signed diversion audit export</h2>
+          <h2 id="audit-heading" data-i18n="audit.heading">Signed diversion audit export</h2>
         </div>
         <span class="mono-tag tabular">HMAC-SHA-256</span>
       </div>
-      <p class="field-help">Exports the current profile pair and basket as a signed audit: deterministic JSON, CSV (formula-injection safe) or Markdown, each carrying an HMAC-SHA-256 integrity tag computed in pure JavaScript. Paste a JSON export back below to replay it: any edited byte fails verification. The tag proves integrity, it is not a third-party certificate.</p>
+      <p class="field-help" data-i18n="audit.help">Exports the current profile pair and basket as a signed audit: deterministic JSON, CSV (formula-injection safe) or Markdown, each carrying an HMAC-SHA-256 integrity tag computed in pure JavaScript. Paste a JSON export back below to replay it: any edited byte fails verification. The tag proves integrity, it is not a third-party certificate.</p>
       <div class="export-actions">
-        <button type="button" id="audit-json-btn" class="primary-btn" data-action="export-audit-json">Download signed JSON</button>
-        <button type="button" id="audit-csv-btn" class="secondary-btn" data-action="export-audit-csv">Download signed CSV</button>
-        <button type="button" id="audit-md-btn" class="secondary-btn" data-action="export-audit-md">Download signed Markdown</button>
-        <button type="button" id="audit-copy-btn" class="secondary-btn" data-action="copy-audit">Copy signed JSON</button>
+        <button type="button" id="audit-json-btn" class="primary-btn" data-action="export-audit-json" data-i18n="btn.auditJson">Download signed JSON</button>
+        <button type="button" id="audit-csv-btn" class="secondary-btn" data-action="export-audit-csv" data-i18n="btn.auditCsv">Download signed CSV</button>
+        <button type="button" id="audit-md-btn" class="secondary-btn" data-action="export-audit-md" data-i18n="btn.auditMd">Download signed Markdown</button>
+        <button type="button" id="audit-copy-btn" class="secondary-btn" data-action="copy-audit" data-i18n="btn.auditCopy">Copy signed JSON</button>
       </div>
       <div id="audit-panel-output"></div>
       <div class="audit-verify-block">
-        <label for="audit-verify-input" class="field-label">Replay and verify a signed audit JSON</label>
-        <textarea id="audit-verify-input" class="csv-textarea tabular" rows="6" spellcheck="false" autocomplete="off" placeholder='Paste a signed BinCheck audit export (JSON with a "signature" block)'></textarea>
+        <label for="audit-verify-input" class="field-label" data-i18n="audit.replayLabel">Replay and verify a signed audit JSON</label>
+        <textarea id="audit-verify-input" class="csv-textarea tabular" rows="6" spellcheck="false" autocomplete="off" data-i18n-ph="audit.placeholder" placeholder='Paste a signed BinCheck audit export (JSON with a "signature" block)'></textarea>
         <div class="csv-actions">
-          <button type="button" id="audit-verify-btn" class="primary-btn" data-action="verify-audit">Verify signature</button>
-          <button type="button" id="audit-load-btn" class="secondary-btn" data-action="load-audit-demo">Load current export into the box</button>
+          <button type="button" id="audit-verify-btn" class="primary-btn" data-action="verify-audit" data-i18n="btn.verifySignature">Verify signature</button>
+          <button type="button" id="audit-load-btn" class="secondary-btn" data-action="load-audit-demo" data-i18n="btn.loadAudit">Load current export into the box</button>
         </div>
         <div id="audit-verify-output" aria-live="polite"></div>
       </div>
@@ -597,100 +607,100 @@
     <section class="card selftest-panel-outer no-print" aria-labelledby="selftest-heading">
       <div class="batch-header">
         <div>
-          <h2 id="selftest-heading">In-page self-tests</h2>
+          <h2 id="selftest-heading" data-i18n="selftest.heading">In-page self-tests</h2>
         </div>
-        <button type="button" id="selftest-run-btn" class="primary-btn" data-action="run-selftests">Run Self-Tests</button>
+        <button type="button" id="selftest-run-btn" class="primary-btn" data-action="run-selftests" data-i18n="btn.runSelfTests">Run Self-Tests</button>
       </div>
-      <p class="field-help">The same safety checks that run in the Node test suite, live in this tab: FIPS 180-4 SHA-256 known-answer vectors, the battery-never-curbside invariant under every profile and condition, diff determinism, diversion-rate bounds, cascade monotonicity, CSV escaping, and tamper detection.</p>
+      <p class="field-help" data-i18n="selftest.help">The same safety checks that run in the Node test suite, live in this tab: FIPS 180-4 SHA-256 known-answer vectors, the battery-never-curbside invariant under every profile and condition, diff determinism, diversion-rate bounds, cascade monotonicity, CSV escaping, and tamper detection.</p>
       <div id="selftest-output" aria-live="polite"></div>
     </section>
 
     <section class="card cheatsheet-section print-guide" id="printable-cheatsheet" aria-labelledby="cheatsheet-heading">
       <div class="cheatsheet-header">
         <div>
-          <h2 id="cheatsheet-heading">Kitchen and garage sorting guide</h2>
+          <h2 id="cheatsheet-heading" data-i18n="guide.heading">Kitchen and garage sorting guide</h2>
         </div>
-        <span class="data-badge is-sourced">From city sites, checked 2026-10-20</span>
+        <span class="data-badge is-sourced" data-i18n="guide.badge">From city sites, checked 2026-10-20</span>
       </div>
       <div class="table-wrap">
         <table class="comparison-table stack-table">
-          <caption class="sr-only">Riverside and Houston curbside rules by household item</caption>
+          <caption class="sr-only" data-i18n="guide.caption">Riverside and Houston curbside rules by household item</caption>
           <thead>
             <tr>
-              <th scope="col">Household Item / Material</th>
-              <th scope="col">City of Riverside, TX (Republic Services)</th>
-              <th scope="col">City of Houston, TX (SWMD)</th>
-              <th scope="col">MRF Sorting Physics &amp; Preparation Rule</th>
+              <th scope="col" data-i18n="guide.col.item">Household Item / Material</th>
+              <th scope="col" data-i18n="guide.col.sl">City of Riverside, TX (Republic Services)</th>
+              <th scope="col" data-i18n="guide.col.hou">City of Houston, TX (SWMD)</th>
+              <th scope="col" data-i18n="guide.col.physics">MRF Sorting Physics &amp; Preparation Rule</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td data-label="Household item"><strong>#1 PET &amp; #2 HDPE Bottles/Jugs</strong></td>
-              <td data-label="Riverside, TX"><span class="table-status status-ok">Recycle in Curbside Cart</span></td>
-              <td data-label="Houston, TX"><span class="table-status status-ok">Recycle in Green Cart</span></td>
-              <td data-label="Sorting physics and preparation">Empty all liquid so optical NIR air jets can eject containers accurately; keep loose.</td>
+              <td data-label="Household item" data-i18n-dl="guide.dl.item"><strong data-i18n="guide.row.pet.item">#1 PET &amp; #2 HDPE Bottles/Jugs</strong></td>
+              <td data-label="Riverside, TX" data-i18n-dl="guide.dl.sl"><span class="table-status status-ok" data-i18n="guide.row.pet.sl">Recycle in Curbside Cart</span></td>
+              <td data-label="Houston, TX" data-i18n-dl="guide.dl.hou"><span class="table-status status-ok" data-i18n="guide.row.pet.hou">Recycle in Green Cart</span></td>
+              <td data-label="Sorting physics and preparation" data-i18n-dl="guide.dl.physics" data-i18n="guide.row.pet.physics">Empty all liquid so optical NIR air jets can eject containers accurately; keep loose.</td>
             </tr>
             <tr>
-              <td data-label="Household item"><strong>#5 Polypropylene (PP) Tubs</strong></td>
-              <td data-label="Riverside, TX"><span class="table-status status-ok">Recycle in Curbside Cart (Clean)</span></td>
-              <td data-label="Houston, TX"><span class="table-status status-ok">Recycle in Green Cart (Clean)</span></td>
-              <td data-label="Sorting physics and preparation">Rinse dairy/food residue; discard foil peel lids in trash.</td>
+              <td data-label="Household item" data-i18n-dl="guide.dl.item"><strong data-i18n="guide.row.pp.item">#5 Polypropylene (PP) Tubs</strong></td>
+              <td data-label="Riverside, TX" data-i18n-dl="guide.dl.sl"><span class="table-status status-ok" data-i18n="guide.row.pp.sl">Recycle in Curbside Cart (Clean)</span></td>
+              <td data-label="Houston, TX" data-i18n-dl="guide.dl.hou"><span class="table-status status-ok" data-i18n="guide.row.pp.hou">Recycle in Green Cart (Clean)</span></td>
+              <td data-label="Sorting physics and preparation" data-i18n-dl="guide.dl.physics" data-i18n="guide.row.pp.physics">Rinse dairy/food residue; discard foil peel lids in trash.</td>
             </tr>
             <tr>
-              <td data-label="Household item"><strong>Clean Glass Bottles &amp; Jars</strong></td>
-              <td data-label="Riverside, TX"><span class="table-status status-ok">Accepted in Curbside Cart</span></td>
-              <td data-label="Houston, TX"><span class="table-status status-ok">Accepted in Green Cart &amp; Depositories</span></td>
-              <td data-label="Sorting physics and preparation">Remove metal caps (recycle separately). Never include broken glass, ceramics, or Pyrex.</td>
+              <td data-label="Household item" data-i18n-dl="guide.dl.item"><strong data-i18n="guide.row.glass.item">Clean Glass Bottles &amp; Jars</strong></td>
+              <td data-label="Riverside, TX" data-i18n-dl="guide.dl.sl"><span class="table-status status-ok" data-i18n="guide.row.glass.sl">Accepted in Curbside Cart</span></td>
+              <td data-label="Houston, TX" data-i18n-dl="guide.dl.hou"><span class="table-status status-ok" data-i18n="guide.row.glass.hou">Accepted in Green Cart &amp; Depositories</span></td>
+              <td data-label="Sorting physics and preparation" data-i18n-dl="guide.dl.physics" data-i18n="guide.row.glass.physics">Remove metal caps (recycle separately). Never include broken glass, ceramics, or Pyrex.</td>
             </tr>
             <tr>
-              <td data-label="Household item"><strong>Greasy Pizza Boxes</strong></td>
-              <td data-label="Riverside, TX"><span class="table-status status-warn">Tear Clean Lid for Cart / Trash Bottom</span></td>
-              <td data-label="Houston, TX"><span class="table-status status-warn">Tear Clean Lid for Cart / Trash Bottom</span></td>
-              <td data-label="Sorting physics and preparation">Pizza oil permanently weakens wet paper pulp; always tear off clean cardboard lids.</td>
+              <td data-label="Household item" data-i18n-dl="guide.dl.item"><strong data-i18n="guide.row.pizza.item">Greasy Pizza Boxes</strong></td>
+              <td data-label="Riverside, TX" data-i18n-dl="guide.dl.sl"><span class="table-status status-warn" data-i18n="guide.row.pizza.sl">Tear Clean Lid for Cart / Trash Bottom</span></td>
+              <td data-label="Houston, TX" data-i18n-dl="guide.dl.hou"><span class="table-status status-warn" data-i18n="guide.row.pizza.hou">Tear Clean Lid for Cart / Trash Bottom</span></td>
+              <td data-label="Sorting physics and preparation" data-i18n-dl="guide.dl.physics" data-i18n="guide.row.pizza.physics">Pizza oil permanently weakens wet paper pulp; always tear off clean cardboard lids.</td>
             </tr>
             <tr>
-              <td data-label="Household item"><strong>Plastic Grocery Bags (#4 Film)</strong></td>
-              <td data-label="Riverside, TX"><span class="table-status status-stop">Never in Cart (Retail Store Drop-Off)</span></td>
-              <td data-label="Houston, TX"><span class="table-status status-stop">Never in Cart (Retail Store Drop-Off)</span></td>
-              <td data-label="Sorting physics and preparation">#1 MRF shaft tangler. Return clean dry film to H-E-B, Kroger, or Target store kiosks.</td>
+              <td data-label="Household item" data-i18n-dl="guide.dl.item"><strong data-i18n="guide.row.film.item">Plastic Grocery Bags (#4 Film)</strong></td>
+              <td data-label="Riverside, TX" data-i18n-dl="guide.dl.sl"><span class="table-status status-stop" data-i18n="guide.row.film.sl">Never in Cart (Retail Store Drop-Off)</span></td>
+              <td data-label="Houston, TX" data-i18n-dl="guide.dl.hou"><span class="table-status status-stop" data-i18n="guide.row.film.hou">Never in Cart (Retail Store Drop-Off)</span></td>
+              <td data-label="Sorting physics and preparation" data-i18n-dl="guide.dl.physics" data-i18n="guide.row.film.physics">#1 MRF shaft tangler. Return clean dry film to H-E-B, Kroger, or Target store kiosks.</td>
             </tr>
             <tr>
-              <td data-label="Household item"><strong>#6 Polystyrene / Styrofoam</strong></td>
-              <td data-label="Riverside, TX"><span class="table-status status-warn">Clean Foam to county Drop-Off; Food Foam in Trash</span></td>
-              <td data-label="Houston, TX"><span class="table-status status-stop">Black Garbage Cart Only</span></td>
-              <td data-label="Sorting physics and preparation">county County Recycling Center (1200 Blume Rd) densifies clean #6 foam; never place in carts.</td>
+              <td data-label="Household item" data-i18n-dl="guide.dl.item"><strong data-i18n="guide.row.foam.item">#6 Polystyrene / Styrofoam</strong></td>
+              <td data-label="Riverside, TX" data-i18n-dl="guide.dl.sl"><span class="table-status status-warn" data-i18n="guide.row.foam.sl">Clean Foam to county Drop-Off; Food Foam in Trash</span></td>
+              <td data-label="Houston, TX" data-i18n-dl="guide.dl.hou"><span class="table-status status-stop" data-i18n="guide.row.foam.hou">Black Garbage Cart Only</span></td>
+              <td data-label="Sorting physics and preparation" data-i18n-dl="guide.dl.physics" data-i18n="guide.row.foam.physics">county County Recycling Center (1200 Blume Rd) densifies clean #6 foam; never place in carts.</td>
             </tr>
             <tr>
-              <td data-label="Household item"><strong>Yard Trimmings &amp; Brush</strong></td>
-              <td data-label="Riverside, TX"><span class="table-status status-ok">Kraft Paper Bags / Cans (<span class="tabular">40 lb</span> limit)</span></td>
-              <td data-label="Houston, TX"><span class="table-status status-warn">City-Logo Compostable Bags Only (<span class="tabular">50 lb</span> limit)</span></td>
-              <td data-label="Sorting physics and preparation">Houston requires bags stamped with the official City biodegradable logo.</td>
+              <td data-label="Household item" data-i18n-dl="guide.dl.item"><strong data-i18n="guide.row.yard.item">Yard Trimmings &amp; Brush</strong></td>
+              <td data-label="Riverside, TX" data-i18n-dl="guide.dl.sl"><span class="table-status status-ok" data-i18n-html="guide.row.yard.sl">Kraft Paper Bags / Cans (<span class="tabular">40 lb</span> limit)</span></td>
+              <td data-label="Houston, TX" data-i18n-dl="guide.dl.hou"><span class="table-status status-warn" data-i18n-html="guide.row.yard.hou">City-Logo Compostable Bags Only (<span class="tabular">50 lb</span> limit)</span></td>
+              <td data-label="Sorting physics and preparation" data-i18n-dl="guide.dl.physics" data-i18n="guide.row.yard.physics">Houston requires bags stamped with the official City biodegradable logo.</td>
             </tr>
             <tr>
-              <td data-label="Household item"><strong>Lithium &amp; Household Batteries</strong></td>
-              <td data-label="Riverside, TX"><span class="table-status status-stop">county County HHW Drop-Off Only</span></td>
-              <td data-label="Houston, TX"><span class="table-status status-stop">Houston Westpark / North ESC BOPA Only</span></td>
-              <td data-label="Sorting physics and preparation">Compaction punctures lithium cells, sparking MRF truck and facility fires. Tape terminals.</td>
+              <td data-label="Household item" data-i18n-dl="guide.dl.item"><strong data-i18n="guide.row.battery.item">Lithium &amp; Household Batteries</strong></td>
+              <td data-label="Riverside, TX" data-i18n-dl="guide.dl.sl"><span class="table-status status-stop" data-i18n="guide.row.battery.sl">county County HHW Drop-Off Only</span></td>
+              <td data-label="Houston, TX" data-i18n-dl="guide.dl.hou"><span class="table-status status-stop" data-i18n="guide.row.battery.hou">Houston Westpark / North ESC BOPA Only</span></td>
+              <td data-label="Sorting physics and preparation" data-i18n-dl="guide.dl.physics" data-i18n="guide.row.battery.physics">Compaction punctures lithium cells, sparking MRF truck and facility fires. Tape terminals.</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="cheatsheet-meta">Sources: City of Riverside Solid Waste and Recycling (Republic Services, county County Recycling Center) and City of Houston SWMD (Westpark, Neighborhood Depositories).</p>
+      <p class="cheatsheet-meta" data-i18n="guide.meta">Sources: City of Riverside Solid Waste and Recycling (Republic Services, county County Recycling Center) and City of Houston SWMD (Westpark, Neighborhood Depositories).</p>
     </section>
     <section id="print-report" class="print-report" aria-hidden="true"></section>
   </main>
 
   <dialog id="shortcut-dialog" class="shortcut-dialog" aria-labelledby="shortcut-dialog-title">
     <div class="dialog-head">
-      <h2 id="shortcut-dialog-title">Keyboard shortcuts</h2>
-      <button type="button" id="shortcut-close-btn" class="secondary-btn" data-action="close-help">Close</button>
+      <h2 id="shortcut-dialog-title" data-i18n="dialog.title">Keyboard shortcuts</h2>
+      <button type="button" id="shortcut-close-btn" class="secondary-btn" data-action="close-help" data-i18n="dialog.close">Close</button>
     </div>
     <ul id="shortcut-list" class="shortcut-list"></ul>
     <label class="shortcut-toggle dialog-shortcut-toggle" for="shortcuts-dialog-toggle">
       <input type="checkbox" id="shortcuts-dialog-toggle" checked />
-      <span>Single-key shortcuts</span>
+      <span data-i18n="dialog.singleKey">Single-key shortcuts</span>
     </label>
-    <p class="field-help">Single-key shortcuts pause while you type in a field and can be switched off here. Escape and Ctrl+Enter always work.</p>
+    <p class="field-help" data-i18n="dialog.help">Single-key shortcuts pause while you type in a field and can be switched off here. Escape and Ctrl+Enter always work.</p>
   </dialog>
 
   <p id="status-live" class="notice-bar no-print" role="status" aria-live="polite"></p>
@@ -698,7 +708,7 @@
   <footer class="site-footer no-print">
     <div class="container footer-four-corners">
       <div class="footer-corner-left">
-        <p class="footer-brand-line"><strong>BinCheck Municipal Rules Engine</strong> <span class="tabular">(v1.3.0)</span></p>
+        <p class="footer-brand-line"><strong data-i18n="footer.brand">BinCheck Municipal Rules Engine</strong> <span class="tabular">(v1.3.0)</span></p>
         <p class="footer-coords tabular">county County HHW: 1200 Blume Rd, Rosenberg, TX 77471 // Houston SWMD Westpark: 5900 Westpark Dr, Houston, TX 77057</p>
       </div>
       <div class="footer-corner-right">

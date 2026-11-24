@@ -44,7 +44,7 @@ test("classification: direct liquid-full category honors an explicit #2 resin st
 
 test("offline: service worker precaches every shipped runtime asset that exists", () => {
   const sw = read("sw.js");
-  assert.match(sw, /CACHE_NAME = "bincheck-offline-2026-11-24-v2"/);
+  assert.match(sw, /CACHE_NAME = "bincheck-offline-2026-11-24-v3"/);
   assert.ok(sw.includes('key.startsWith("bincheck-offline-")'), "activation must not delete other apps' caches");
   const assets = [...sw.matchAll(/"(\.\/[^"]+)"/g)].map((match) => match[1]).filter((asset) => asset !== "./");
   assert.ok(assets.length >= 20);

@@ -238,7 +238,8 @@ export function assessCsvText(text) {
         line: 0,
         code: "BINARY_LIKE_INPUT",
         offset: 0,
-        message: `Input holds ${nul} NUL character${nul === 1 ? "" : "s"}. That is binary data, not CSV text. Export a plain .csv file or paste comma-separated rows.`
+        message: `Input holds ${nul} NUL character${nul === 1 ? "" : "s"}. That is binary data, not CSV text. Export a plain .csv file or paste comma-separated rows.`,
+        params: { kind: "nul", count: nul }
       }
     };
   }
@@ -249,7 +250,8 @@ export function assessCsvText(text) {
         line: 0,
         code: "BINARY_LIKE_INPUT",
         offset: 0,
-        message: `Input holds ${control} non-text control characters. It looks like binary data, not CSV text. Export a plain .csv file or paste comma-separated rows.`
+        message: `Input holds ${control} non-text control characters. It looks like binary data, not CSV text. Export a plain .csv file or paste comma-separated rows.`,
+        params: { kind: "control", count: control }
       }
     };
   }
@@ -260,7 +262,8 @@ export function assessCsvText(text) {
         line: 0,
         code: "BINARY_LIKE_INPUT",
         offset: 0,
-        message: `Input holds ${replacement} replacement characters (U+FFFD), the residue of decoding bytes that were not UTF-8 text. Export a plain .csv file or paste comma-separated rows.`
+        message: `Input holds ${replacement} replacement characters (U+FFFD), the residue of decoding bytes that were not UTF-8 text. Export a plain .csv file or paste comma-separated rows.`,
+        params: { kind: "replacement", count: replacement }
       }
     };
   }
@@ -269,7 +272,8 @@ export function assessCsvText(text) {
     warnings.push({
       line: 0,
       code: "UNUSUAL_CHARACTERS",
-      message: `${control + replacement} unusual control or replacement character(s) were found; the rows were still read.`
+      message: `${control + replacement} unusual control or replacement character(s) were found; the rows were still read.`,
+      params: { count: control + replacement }
     });
   }
   return { ok: true, warnings };
@@ -303,7 +307,7 @@ export function decodeBatchBytes(input) {
   }
   if (byteCount > BATCH_LIMITS.maxBytes) {
     return done(false, {
-      errors: [{ line: 0, code: "TOO_LARGE", offset: 0, message: `File is ${byteCount} bytes. The limit is ${BATCH_LIMITS.maxBytes} bytes.` }]
+      errors: [{ line: 0, code: "TOO_LARGE", offset: 0, message: `File is ${byteCount} bytes. The limit is ${BATCH_LIMITS.maxBytes} bytes.`, params: { byteCount, maxBytes: BATCH_LIMITS.maxBytes } }]
     });
   }
 
@@ -315,7 +319,8 @@ export function decodeBatchBytes(input) {
         code: "BINARY_INPUT",
         offset: 0,
         format: signature.format,
-        message: `This looks like ${signature.format}, not CSV text. Re-export the data as a plain .csv file or paste the rows.`
+        message: `This looks like ${signature.format}, not CSV text. Re-export the data as a plain .csv file or paste the rows.`,
+        params: { format: signature.format }
       }]
     });
   }
@@ -343,7 +348,8 @@ export function decodeBatchBytes(input) {
           code: "INVALID_UTF16",
           offset: 0,
           encoding: utf16,
-          message: `The file looks ${utf16.toUpperCase()} but could not be decoded (odd byte count or a broken surrogate pair). Save it as UTF-8 CSV and try again.`
+          message: `The file looks ${utf16.toUpperCase()} but could not be decoded (odd byte count or a broken surrogate pair). Save it as UTF-8 CSV and try again.`,
+          params: { encoding: utf16.toUpperCase() }
         }]
       });
     }
@@ -359,7 +365,8 @@ export function decodeBatchBytes(input) {
         offset: scan.offset,
         byte: scan.byte,
         reason: scan.code,
-        message: `Byte ${scan.offset} (${hex}) ${UTF8_FAILURE_DETAILS[scan.code]}. The file is not valid UTF-8 text; re-export it as CSV.`
+        message: `Byte ${scan.offset} (${hex}) ${UTF8_FAILURE_DETAILS[scan.code]}. The file is not valid UTF-8 text; re-export it as CSV.`,
+        params: { offset: scan.offset, hex, reason: scan.code }
       }]
     });
   }
@@ -379,7 +386,8 @@ export function decodeBatchBytes(input) {
         code: "BINARY_INPUT",
         offset: firstNul,
         format: "binary data with NUL bytes",
-        message: `The file holds ${nulCount} NUL byte${nulCount === 1 ? "" : "s"} (first at byte ${firstNul}); that is binary data, not CSV text.`
+        message: `The file holds ${nulCount} NUL byte${nulCount === 1 ? "" : "s"} (first at byte ${firstNul}); that is binary data, not CSV text.`,
+        params: { format: "binary data with NUL bytes", count: nulCount, firstNul }
       }]
     });
   }
@@ -424,8 +432,10 @@ export const SAMPLE_BATCH_CSV = [
   "Mistyped barcode,041220576464,resin-1-pet,,clean"
 ].join("\n");
 
-function csvError(line, code, message) {
-  return { line, code, message };
+function csvError(line, code, message, params) {
+  const entry = { line, code, message };
+  if (params && typeof params === "object") entry.params = params;
+  return entry;
 }
 
 /**
@@ -511,7 +521,8 @@ export function parseCsv(text) {
             csvError(
               line,
               "CSV_TRAILING_CHARS",
-              `Characters ("${junk}") follow a closing quote, so the row starting on line ${recordLine} could not be read and was skipped.`
+              `Characters ("${junk}") follow a closing quote, so the row starting on line ${recordLine} could not be read and was skipped.`,
+              { junk, recordLine }
             )
           );
         }
@@ -577,7 +588,7 @@ export function parseBatchCsv(text) {
   if (typeof text !== "string" || text.trim() === "") {
     return {
       rows: [],
-      errors: [csvError(0, "EMPTY_INPUT", "Paste CSV text or choose a file first.")],
+      errors: [csvError(0, "EMPTY_INPUT", "Paste CSV text or choose a file first.", { kind: "text" })],
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
@@ -591,7 +602,7 @@ export function parseBatchCsv(text) {
   if (bytes > BATCH_LIMITS.maxBytes) {
     return {
       rows: [],
-      errors: [csvError(0, "TOO_LARGE", `Input is ${bytes} bytes. The limit is ${BATCH_LIMITS.maxBytes} bytes.`)],
+      errors: [csvError(0, "TOO_LARGE", `Input is ${bytes} bytes. The limit is ${BATCH_LIMITS.maxBytes} bytes.`, { byteCount: bytes, maxBytes: BATCH_LIMITS.maxBytes })],
       hasHeader: false,
       columns: [...CSV_COLUMNS],
       truncated: false,
@@ -634,7 +645,8 @@ export function parseBatchCsv(text) {
     errors.push(csvError(
       parsed.malformedFirstLine,
       "AMBIGUOUS_COLUMN_MAPPING",
-      "The first data row could not be read, so it is impossible to tell whether it named the columns. Guessing column positions could silently mislabel every row, so no rows were evaluated. Fix that row or add a header row and try again."
+      "The first data row could not be read, so it is impossible to tell whether it named the columns. Guessing column positions could silently mislabel every row, so no rows were evaluated. Fix that row or add a header row and try again.",
+      { variant: "first" }
     ));
     return { rows: [], errors, hasHeader: false, columns, truncated: incompleteInput, truncatedByRowLimit: false, incompleteInput, droppedRows, bytes };
   }
@@ -647,7 +659,8 @@ export function parseBatchCsv(text) {
     errors.push(csvError(
       parsed.suspectFirstLine,
       "AMBIGUOUS_COLUMN_MAPPING",
-      "The first data row holds a quote mark where a quoted field cannot begin, so it may be a damaged header row. Guessing column positions could silently mislabel every row, so no rows were evaluated. Fix that row or add a header row and try again."
+      "The first data row holds a quote mark where a quoted field cannot begin, so it may be a damaged header row. Guessing column positions could silently mislabel every row, so no rows were evaluated. Fix that row or add a header row and try again.",
+      { variant: "quote" }
     ));
     return { rows: [], errors, hasHeader: false, columns, truncated: incompleteInput, truncatedByRowLimit: false, incompleteInput, droppedRows, bytes };
   }
@@ -718,7 +731,7 @@ export function parseBatchCsv(text) {
       columns = headerColumns;
       records[0].cells.forEach((cell, index) => {
         if (!columns[index] && cell.trim() !== "") {
-          errors.push(csvError(records[0].line, "UNKNOWN_COLUMN", `Column "${cell.slice(0, 30)}" is not recognized and was ignored.`));
+          errors.push(csvError(records[0].line, "UNKNOWN_COLUMN", `Column "${cell.slice(0, 30)}" is not recognized and was ignored.`, { column: cell.slice(0, 30) }));
         }
       });
       const firstIndexOf = new Map();
@@ -740,7 +753,8 @@ export function parseBatchCsv(text) {
             code: "DUPLICATE_COLUMN",
             column,
             headers: indexes.map((index) => records[0].cells[index]),
-            message: `Headers ${detail} both map to the "${column}" column, so one value would silently overwrite the other. Rename or remove a column and try again.`
+            message: `Headers ${detail} both map to the "${column}" column, so one value would silently overwrite the other. Rename or remove a column and try again.`,
+            params: { detail, column }
           });
         }
         droppedRows += records.length - 1;
@@ -754,7 +768,7 @@ export function parseBatchCsv(text) {
   if (records.length > BATCH_LIMITS.maxRows) {
     truncatedByRowLimit = true;
     droppedRows += records.length - BATCH_LIMITS.maxRows;
-    errors.push(csvError(records[BATCH_LIMITS.maxRows].line, "ROW_LIMIT", `Only the first ${BATCH_LIMITS.maxRows} rows were read.`));
+    errors.push(csvError(records[BATCH_LIMITS.maxRows].line, "ROW_LIMIT", `Only the first ${BATCH_LIMITS.maxRows} rows were read.`, { max: BATCH_LIMITS.maxRows }));
     records = records.slice(0, BATCH_LIMITS.maxRows);
   }
 
@@ -765,7 +779,8 @@ export function parseBatchCsv(text) {
         csvError(
           record.line,
           "EXTRA_CELLS",
-          `Row has ${record.cells.length - columns.length} extra cell(s) beyond the ${columns.length} known columns; extra data was ignored.`
+          `Row has ${record.cells.length - columns.length} extra cell(s) beyond the ${columns.length} known columns; extra data was ignored.`,
+          { count: record.cells.length - columns.length, columns: columns.length }
         )
       );
     }
@@ -873,11 +888,11 @@ export function inspectBatch(rows = []) {
     if (hasError) {
       errorIssues = issues.filter((entry) => entry.severity === "error");
     } else if (!identified && !assessment.query.barcode) {
-      errorIssues = [{ code: "EMPTY_ROW", severity: "error", field: "item", message: "Row has no barcode, material, or resin code." }];
+      errorIssues = [{ code: "EMPTY_ROW", severity: "error", field: "item", message: "Row has no barcode, material, or resin code.", params: {} }];
     } else if (barcodeOnlyInvalid) {
       errorIssues = issues.filter((entry) => entry.code === "BARCODE_INVALID").map((entry) => ({ ...entry, severity: "error" }));
     } else if (!identified) {
-      errorIssues = [{ code: "NO_ITEM_IDENTIFIED", severity: "error", field: "item", message: "Barcode is not in the demo catalog and no material or resin code was given." }];
+      errorIssues = [{ code: "NO_ITEM_IDENTIFIED", severity: "error", field: "item", message: "Barcode is not in the demo catalog and no material or resin code was given.", params: { kind: "batch" } }];
     }
 
     if (row.droppedCondition) {
@@ -886,7 +901,8 @@ export function inspectBatch(rows = []) {
         code: "UNMAPPED_CONDITION",
         severity: "error",
         field: "condition",
-        message: `The value "${String(dropped.value).slice(0, 40)}" in column ${dropped.column} looks like a condition, but that column has no recognized name, so it was not read and the row's real condition is unknown. Name that column "condition" or move the value into the condition column and run again.`
+        message: `The value "${String(dropped.value).slice(0, 40)}" in column ${dropped.column} looks like a condition, but that column has no recognized name, so it was not read and the row's real condition is unknown. Name that column "condition" or move the value into the condition column and run again.`,
+        params: { value: String(dropped.value).slice(0, 40), column: dropped.column }
       });
     }
 

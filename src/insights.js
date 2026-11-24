@@ -11,6 +11,15 @@ import {
   evaluateItemDisposal,
   scoreCartBatch
 } from "../js/bincheck-engine.js";
+import {
+  VERDICTS_ES,
+  CATALOG_ES,
+  CATALOG_SEARCH_ALIASES_ES,
+  MATERIAL_SEARCH_ALIASES_ES,
+  materialTitleEs,
+  normalizeLang,
+  t
+} from "../js/bincheck-i18n.js";
 
 /** The five engine streams plus the workbench ORGANICS_CART stream as one-word verdicts. */
 export const VERDICTS = Object.freeze({
@@ -22,8 +31,12 @@ export const VERDICTS = Object.freeze({
   ORGANICS_CART: Object.freeze({ key: "yard", word: "Organics", where: "Curbside organics cart" })
 });
 
-export function verdictFor(stream) {
-  return VERDICTS[stream] || { key: "unknown", word: String(stream), where: "" };
+export function verdictFor(stream, lang = "en") {
+  const en = VERDICTS[stream] || { key: "unknown", word: String(stream), where: "" };
+  if (normalizeLang(lang) === "es" && VERDICTS_ES[stream]) {
+    return { key: en.key, word: VERDICTS_ES[stream].word, where: VERDICTS_ES[stream].where };
+  }
+  return en;
 }
 
 /** A clean #1 PET bottle: the baseline "good" item for the calculator. */
@@ -99,7 +112,13 @@ const SEARCH_STOPWORDS = new Set([
   "symbol", "type", "kind", "sort", "item", "thing", "stuff",
   "rinsed", "rinse", "washed", "clean", "dirty", "greasy", "oily", "empty",
   "half", "full", "filled", "leftover", "used", "new", "old", "unused", "open",
-  "opened", "unopened", "wet", "dry"
+  "opened", "unopened", "wet", "dry",
+  "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "en",
+  "con", "sin", "para", "por", "que", "es", "son", "al", "se", "lo", "su",
+  "sus", "mi", "mis", "tu", "tus", "yo", "nosotros", "usted", "ustedes",
+  "como", "mas", "muy", "ya", "hay", "este", "esta", "estos", "estas",
+  "limpio", "limpia", "sucio", "sucia", "grasoso", "grasosa", "vacio", "vacia",
+  "lleno", "llena", "roto", "rota", "nuevo", "nueva", "usado", "usada"
 ]);
 
 let searchIndex = null;
@@ -165,6 +184,9 @@ function buildSearchIndex() {
         material && MATERIAL_SEARCH_ALIASES[material.id] ? MATERIAL_SEARCH_ALIASES[material.id] : "",
         resinMeta ? resinMeta.commonItems : "",
         CATALOG_SEARCH_ALIASES[item.upc] || "",
+        CATALOG_ES[item.upc] || "",
+        CATALOG_SEARCH_ALIASES_ES[item.upc] || "",
+        material && MATERIAL_SEARCH_ALIASES_ES[material.id] ? MATERIAL_SEARCH_ALIASES_ES[material.id] : "",
         item.upc
       ].join(" "))
     });
@@ -182,6 +204,8 @@ function buildSearchIndex() {
         material.title,
         id.replace(/-/g, " "),
         MATERIAL_SEARCH_ALIASES[id] || "",
+        MATERIAL_SEARCH_ALIASES_ES[id] || "",
+        materialTitleEs(id),
         resinMeta ? resinMeta.commonItems : ""
       ].join(" "))
     });
@@ -197,7 +221,7 @@ function buildSearchIndex() {
  * instead of a dead end. Results carry the verdict for both cities so a
  * divergence is visible before anything is opened.
  */
-export function searchItems(rawQuery, { limit = 8 } = {}) {
+export function searchItems(rawQuery, { limit = 8, lang = "en" } = {}) {
   const q = foldText(rawQuery).trim();
   if (!q) return { query: "", total: 0, results: [], partial: false };
   if (!searchIndex) searchIndex = buildSearchIndex();
@@ -240,13 +264,25 @@ export function searchItems(rawQuery, { limit = 8 } = {}) {
   const results = pool.slice(0, limit).map(({ entry }) => {
     const sl = evaluateItemDisposal({ ...entry.query, city: "Riverside-tx" });
     const ho = evaluateItemDisposal({ ...entry.query, city: "houston-tx" });
+    let title = entry.title;
+    let sub = entry.sub;
+    if (normalizeLang(lang) === "es") {
+      if (entry.kind === "barcode") {
+        title = CATALOG_ES[entry.value] || entry.title;
+        const product = VERIFIED_BARCODE_CATALOG.find((item) => item.upc === entry.value);
+        sub = product ? t("es", "search.demoSub", { brand: product.brand, upc: product.upc }) : sub;
+      } else {
+        title = materialTitleEs(entry.value);
+        sub = t("es", "search.categorySub");
+      }
+    }
     return {
       kind: entry.kind,
       value: entry.value,
-      title: entry.title,
-      sub: entry.sub,
-      Riverside: { stream: sl.stream, verdict: verdictFor(sl.stream), risk: sl.contaminationRiskScore },
-      houston: { stream: ho.stream, verdict: verdictFor(ho.stream), risk: ho.contaminationRiskScore },
+      title,
+      sub,
+      Riverside: { stream: sl.stream, verdict: verdictFor(sl.stream, lang), risk: sl.contaminationRiskScore },
+      houston: { stream: ho.stream, verdict: verdictFor(ho.stream, lang), risk: ho.contaminationRiskScore },
       citiesDiffer: sl.stream !== ho.stream
     };
   });
@@ -264,7 +300,7 @@ function clampInt(value, min, max, fallback) {
  * join `cleanCount` clean #1 PET bottles. Runs the engine's own scoreCartBatch,
  * so the status follows the same max-risk rule and 25 / 55 / 85 thresholds.
  */
-export function computeContaminationImpact({ query = {}, city = "Riverside-tx", cleanCount = 20, itemCount = 1 } = {}) {
+export function computeContaminationImpact({ query = {}, city = "Riverside-tx", cleanCount = 20, itemCount = 1, lang = "en" } = {}) {
   const clean = clampInt(cleanCount, 0, 40, 20);
   const count = clampInt(itemCount, 0, 5, 1);
   const safeCity = city === "houston-tx" ? "houston-tx" : "Riverside-tx";
@@ -284,9 +320,9 @@ export function computeContaminationImpact({ query = {}, city = "Riverside-tx", 
     cleanCount: clean,
     itemCount: count,
     total,
-    itemTitle: itemEval.itemTitle,
+    itemTitle: normalizeLang(lang) === "es" ? (materialTitleEs(itemEval.materialId) || itemEval.itemTitle) : itemEval.itemTitle,
     itemStream: itemEval.stream,
-    itemVerdict: verdictFor(itemEval.stream),
+    itemVerdict: verdictFor(itemEval.stream, lang),
     itemRisk: itemEval.contaminationRiskScore,
     itemTier: itemEval.contaminationTier,
     cleanRisk: cleanEval.contaminationRiskScore,

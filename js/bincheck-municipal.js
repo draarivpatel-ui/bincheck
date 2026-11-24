@@ -423,11 +423,12 @@ export function evaluateBasket(basketId, profileId) {
   const basket = MUNICIPAL_BASKETS[normalizeBasketId(basketId) || DEFAULT_BASKET_ID];
   const profile = MRF_PROFILES[normalizeProfileId(profileId) || DEFAULT_PROFILE_ID];
 
-  const rows = basket.items.map((item) => {
+  const rows = basket.items.map((item, index) => {
     const verdict = evaluateProfileItem(profile.id, { materialId: item.materialId, condition: item.condition });
     return {
       materialId: item.materialId,
       condition: item.condition,
+      index,
       label: item.label,
       weightLbs: item.weightLbs,
       ...verdict,
@@ -490,7 +491,7 @@ const CONFLICT_KIND_LABELS = Object.freeze({
  * profiles. The alert severity comes from the engine's own base risk score, so
  * a hazardous battery outranks a foam cup.
  */
-function classifyConflict(verdictFrom, verdictTo, label, materialId) {
+function classifyConflict(verdictFrom, verdictTo, label, materialId, index) {
   const from = verdictFrom;
   const to = verdictTo;
   if (from.stream === to.stream) {
@@ -502,6 +503,18 @@ function classifyConflict(verdictFrom, verdictTo, label, materialId) {
   const toDiverts = to.divertFraction > 0;
   const fromCurbside = from.curbside;
   const toCurbside = to.curbside;
+  const detail = {
+    materialId,
+    index,
+    itemLabel: label,
+    fromProfile: from.profileId,
+    toProfile: to.profileId,
+    fromStream: from.stream,
+    toStream: to.stream,
+    fromRisk: from.risk,
+    toRisk: to.risk,
+    massLbs: from.weightLbs ?? to.weightLbs
+  };
 
   let kind = "STREAM_CHANGE";
   let message;
@@ -517,12 +530,12 @@ function classifyConflict(verdictFrom, verdictTo, label, materialId) {
   } else if (!fromDiverts && toDiverts) {
     kind = "DIVERSION_GAINED";
     message = `${label}: landfilled under ${from.profileId} but diverted under ${to.profileId} (${WORKBENCH_STREAM_LABELS[to.stream]}).`;
-    return { kind, severity: "info", message, materialId, itemLabel: label, fromProfile: from.profileId, toProfile: to.profileId, fromStream: from.stream, toStream: to.stream };
+    return { kind, severity: "info", message, ...detail };
   } else {
     kind = "STREAM_CHANGE";
     message = `${label}: ${WORKBENCH_STREAM_LABELS[from.stream]} under ${from.profileId}, ${WORKBENCH_STREAM_LABELS[to.stream]} under ${to.profileId}.`;
   }
-  return { kind, severity, message, materialId, itemLabel: label, fromProfile: from.profileId, toProfile: to.profileId, fromStream: from.stream, toStream: to.stream };
+  return { kind, severity, message, ...detail };
 }
 
 export const CONFLICT_KIND_LABELS_EXPORTED = CONFLICT_KIND_LABELS;
@@ -540,6 +553,7 @@ export function compareProfiles(profileA, profileB, basketId = DEFAULT_BASKET_ID
     const rowB = b.rows[index];
     return {
       materialId: rowA.materialId,
+      index,
       label: rowA.label,
       weightLbs: rowA.weightLbs,
       a: { stream: rowA.stream, badgeLabel: rowA.badgeLabel, note: rowA.note, curbside: rowA.curbside },
@@ -550,9 +564,9 @@ export function compareProfiles(profileA, profileB, basketId = DEFAULT_BASKET_ID
 
   const conflicts = [];
   for (let i = 0; i < a.rows.length; i += 1) {
-    const forward = classifyConflict(a.rows[i], b.rows[i], a.rows[i].label, a.rows[i].materialId);
+    const forward = classifyConflict(a.rows[i], b.rows[i], a.rows[i].label, a.rows[i].materialId, i);
     if (forward) conflicts.push(forward);
-    const backward = classifyConflict(b.rows[i], a.rows[i], a.rows[i].label, a.rows[i].materialId);
+    const backward = classifyConflict(b.rows[i], a.rows[i], a.rows[i].label, a.rows[i].materialId, i);
     if (backward) conflicts.push(backward);
   }
   const severityRank = { critical: 0, warning: 1, info: 2 };

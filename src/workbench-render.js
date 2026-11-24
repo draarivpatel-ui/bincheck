@@ -9,14 +9,19 @@ import { escapeHtml, renderVerdictIcon } from "./render.js";
 import { WORKBENCH_STREAM_LABELS, MRF_PROFILES, CONFLICT_KIND_LABELS_EXPORTED } from "../js/bincheck-municipal.js";
 import { CASCADE_SCENARIO_IDS } from "../js/bincheck-cascade.js";
 import { verdictFor } from "./insights.js";
+import { t, workbenchStreamLabelEs, conflictKindEs, auditDetailEs, normalizeLang } from "../js/bincheck-i18n.js";
 
 function streamTone(stream) {
   return verdictFor(stream).key;
 }
 
-function renderStreamTag(stream) {
+function streamLabel(stream, lang) {
+  return normalizeLang(lang) === "es" ? workbenchStreamLabelEs(stream) : WORKBENCH_STREAM_LABELS[stream] || stream;
+}
+
+function renderStreamTag(stream, lang = "en") {
   const key = streamTone(stream);
-  return `<span class="stream-tag verdict-${escapeHtml(key)}">${renderVerdictIcon(key, 12)}<span>${escapeHtml(WORKBENCH_STREAM_LABELS[stream] || stream)}</span></span>`;
+  return `<span class="stream-tag verdict-${escapeHtml(key)}">${renderVerdictIcon(key, 12)}<span>${escapeHtml(streamLabel(stream, lang))}</span></span>`;
 }
 
 function metricRow(label, valueA, valueB, { suffix = "", invert = false } = {}) {
@@ -36,17 +41,18 @@ function metricRow(label, valueA, valueB, { suffix = "", invert = false } = {}) 
  * The municipal diff card: two profile metric columns, the per-item routing
  * table, and the rule-conflict alert list. `diff` is compareProfiles output.
  */
-export function renderMunicipalDiff(diff) {
+export function renderMunicipalDiff(diff, lang = "en") {
   const { a, b } = diff;
   const kindTag = (profile) =>
-    `<span class="data-badge ${profile.profileKind === "snapshot" ? "is-sourced" : "is-demo"}">${profile.profileKind === "snapshot" ? "Real city snapshot" : "Illustrative archetype"}</span>`;
+    `<span class="data-badge ${profile.profileKind === "snapshot" ? "is-sourced" : "is-demo"}">${escapeHtml(t(lang, profile.profileKind === "snapshot" ? "diff.kindTag.snapshot" : "diff.kindTag.archetype"))}</span>`;
 
   const alertItems = diff.conflicts
     .map((entry) => {
       const icon = entry.severity === "critical" ? "dropoff" : entry.severity === "warning" ? "split" : "unknown";
+      const kindLabel = normalizeLang(lang) === "es" ? conflictKindEs(entry.kind) : CONFLICT_KIND_LABELS_EXPORTED[entry.kind] || entry.kind;
       return `<li class="conflict-item conflict-${escapeHtml(entry.severity)}">
         <span class="conflict-icon">${renderVerdictIcon(icon, 14)}</span>
-        <span><strong class="conflict-kind tabular">${escapeHtml(CONFLICT_KIND_LABELS_EXPORTED[entry.kind] || entry.kind)}</strong> ${escapeHtml(entry.message)}</span>
+        <span><strong class="conflict-kind tabular">${escapeHtml(kindLabel)}</strong> ${escapeHtml(entry.message)}</span>
       </li>`;
     })
     .join("");
@@ -55,56 +61,59 @@ export function renderMunicipalDiff(diff) {
     .map(
       (row) => `<tr${row.changed ? ' class="diff-row-changed"' : ""}>
         <th scope="row">${escapeHtml(row.label)} <span class="tabular diff-weight">${escapeHtml(String(row.weightLbs))} lb</span></th>
-        <td data-label="${escapeHtml(a.shortName)}">${renderStreamTag(row.a.stream)}${row.changed ? `<p class="diff-note">${escapeHtml(row.a.note || "")}</p>` : ""}</td>
-        <td data-label="${escapeHtml(b.shortName)}">${renderStreamTag(row.b.stream)}${row.changed ? `<p class="diff-note">${escapeHtml(row.b.note || "")}</p>` : ""}</td>
+        <td data-label="${escapeHtml(a.shortName)}">${renderStreamTag(row.a.stream, lang)}${row.changed ? `<p class="diff-note">${escapeHtml(row.a.note || "")}</p>` : ""}</td>
+        <td data-label="${escapeHtml(b.shortName)}">${renderStreamTag(row.b.stream, lang)}${row.changed ? `<p class="diff-note">${escapeHtml(row.b.note || "")}</p>` : ""}</td>
       </tr>`
     )
     .join("");
+
+  const summaryA = a.profileSummary || MRF_PROFILES[a.profileId].summary;
+  const summaryB = b.profileSummary || MRF_PROFILES[b.profileId].summary;
 
   return `
   <div class="diff-panel">
     <div class="diff-heads">
       <div class="diff-head-card">
         <div class="diff-head-row"><h4>${escapeHtml(a.profileName)}</h4>${kindTag(a)}</div>
-        <p class="diff-summary">${escapeHtml(MRF_PROFILES[a.profileId].summary)}</p>
+        <p class="diff-summary">${escapeHtml(summaryA)}</p>
       </div>
       <div class="diff-head-card">
         <div class="diff-head-row"><h4>${escapeHtml(b.profileName)}</h4>${kindTag(b)}</div>
-        <p class="diff-summary">${escapeHtml(MRF_PROFILES[b.profileId].summary)}</p>
+        <p class="diff-summary">${escapeHtml(summaryB)}</p>
       </div>
     </div>
 
     <div class="table-wrap">
       <table class="comparison-table stack-table diff-metrics-table">
-        <caption class="sr-only">Diversion and contamination metrics for ${escapeHtml(a.profileName)} versus ${escapeHtml(b.profileName)} on the ${escapeHtml(diff.basketName)}</caption>
-        <thead><tr><th scope="col">Metric (${escapeHtml(diff.basketName)})</th><th scope="col">${escapeHtml(a.shortName)}</th><th scope="col">${escapeHtml(b.shortName)}</th><th scope="col">A minus B</th></tr></thead>
+        <caption class="sr-only">${escapeHtml(t(lang, "diff.metricsCaption", { a: a.profileName, b: b.profileName, basket: diff.basketName }))}</caption>
+        <thead><tr><th scope="col">${escapeHtml(t(lang, "diff.metric", { basket: diff.basketName }))}</th><th scope="col">${escapeHtml(a.shortName)}</th><th scope="col">${escapeHtml(b.shortName)}</th><th scope="col">${escapeHtml(t(lang, "diff.ab"))}</th></tr></thead>
         <tbody>
-          ${metricRow("Diversion rate", a.diversionRatePct, b.diversionRatePct, { suffix: "%" })}
-          ${metricRow("Curbside-only diversion", a.curbsideRatePct, b.curbsideRatePct, { suffix: "%" })}
-          ${metricRow("Diverted mass", a.divertedLbs, b.divertedLbs, { suffix: " lb" })}
-          ${metricRow("Needs a drop-off trip", a.dropOffLbs, b.dropOffLbs, { suffix: " lb", invert: true })}
-          ${metricRow("Landfilled mass", a.trashLbs, b.trashLbs, { suffix: " lb", invert: true })}
-          ${metricRow("Naive-cart contamination", a.naiveCartContaminationPct, b.naiveCartContaminationPct, { suffix: "%", invert: true })}
-          ${metricRow("Contamination risk index", a.contaminationRiskIndex, b.contaminationRiskIndex, { suffix: "/100", invert: true })}
-          ${metricRow("Lifecycle CO2e avoided", a.co2eAvoidedKg, b.co2eAvoidedKg, { suffix: " kg" })}
+          ${metricRow(t(lang, "diff.metric.diversionRate"), a.diversionRatePct, b.diversionRatePct, { suffix: "%" })}
+          ${metricRow(t(lang, "diff.metric.curbsideOnly"), a.curbsideRatePct, b.curbsideRatePct, { suffix: "%" })}
+          ${metricRow(t(lang, "diff.metric.divertedMass"), a.divertedLbs, b.divertedLbs, { suffix: " lb" })}
+          ${metricRow(t(lang, "diff.metric.dropOffMass"), a.dropOffLbs, b.dropOffLbs, { suffix: " lb", invert: true })}
+          ${metricRow(t(lang, "diff.metric.landfillMass"), a.trashLbs, b.trashLbs, { suffix: " lb", invert: true })}
+          ${metricRow(t(lang, "diff.metric.cartContamination"), a.naiveCartContaminationPct, b.naiveCartContaminationPct, { suffix: "%", invert: true })}
+          ${metricRow(t(lang, "diff.metric.contaminationRisk"), a.contaminationRiskIndex, b.contaminationRiskIndex, { suffix: "/100", invert: true })}
+          ${metricRow(t(lang, "diff.metric.co2eAvoided"), a.co2eAvoidedKg, b.co2eAvoidedKg, { suffix: " kg" })}
         </tbody>
       </table>
     </div>
-    <p class="field-help">Diversion counts recycling, organics, green waste, split-share and drop-off mass that avoids landfill. CO2e uses EPA WARM-style planning factors disclosed per material in the signed audit; they are planning estimates, not facility measurements. Item masses are illustrative household estimates.</p>
+    <p class="field-help">${escapeHtml(t(lang, "diff.metricsHelp"))}</p>
 
     <div class="conflict-block">
-      <h4>Rule-conflict alerts <span class="tabular mono-tag">${diff.conflicts.length}</span></h4>
-      ${diff.conflicts.length === 0 ? `<p class="empty-batch-msg">No conflicts: every basket item routes to the same kind of stream under both profiles.</p>` : `<ul class="conflict-list">${alertItems}</ul>`}
+      <h4>${escapeHtml(t(lang, "diff.conflicts"))} <span class="tabular mono-tag">${diff.conflicts.length}</span></h4>
+      ${diff.conflicts.length === 0 ? `<p class="empty-batch-msg">${escapeHtml(t(lang, "diff.noConflicts"))}</p>` : `<ul class="conflict-list">${alertItems}</ul>`}
     </div>
 
     <div class="table-wrap">
       <table class="comparison-table stack-table diff-items-table">
-        <caption class="sr-only">Item by item routing under both profiles</caption>
-        <thead><tr><th scope="col">Basket item</th><th scope="col">${escapeHtml(a.shortName)}</th><th scope="col">${escapeHtml(b.shortName)}</th></tr></thead>
+        <caption class="sr-only">${escapeHtml(t(lang, "diff.caption"))}</caption>
+        <thead><tr><th scope="col">${escapeHtml(t(lang, "diff.col.basket"))}</th><th scope="col">${escapeHtml(a.shortName)}</th><th scope="col">${escapeHtml(b.shortName)}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <p class="rule-source tabular">Snapshot profiles: ${escapeHtml(diff.rulesSnapshot.schemaVersion)} verified ${escapeHtml(diff.rulesSnapshot.lastVerifiedDate)}. Archetypes are illustrative planning models, not claims about any named city.</p>
+    <p class="rule-source tabular">${escapeHtml(t(lang, "diff.snapshotLine", { schema: diff.rulesSnapshot.schemaVersion, date: diff.rulesSnapshot.lastVerifiedDate }))}</p>
   </div>`;
 }
 
@@ -112,7 +121,7 @@ export function renderMunicipalDiff(diff) {
  * The hazard cascade lab output: one card per scenario with a stage ladder,
  * plus the combined severity readout for the whole lab.
  */
-export function renderCascadeLab(lab) {
+export function renderCascadeLab(lab, lang = "en") {
   const cards = lab.results
     .map((result) => {
       const stageItems = result.stages
@@ -132,13 +141,13 @@ export function renderCascadeLab(lab) {
           </div>
           <span class="cascade-severity tabular severity-${escapeHtml(level)}">${result.severity}/100</span>
         </div>
-        ${result.count > 0 ? `<ol class="cascade-stages">${stageItems}</ol>` : `<p class="empty-batch-msg">Set the slider for this scenario above zero to see where the failure starts.</p>`}
+        ${result.count > 0 ? `<ol class="cascade-stages">${stageItems}</ol>` : `<p class="empty-batch-msg">${escapeHtml(t(lang, "cascade.idleStage"))}</p>`}
         <div class="cascade-metrics tabular">
-          <span>Modeled downtime: <strong>${result.downtimeMin} min</strong></span>
-          <span>Clean-fiber bale yield: <strong>${result.baleYieldPct}%</strong></span>
-          <span>Item verdict: <strong>${escapeHtml(WORKBENCH_STREAM_LABELS[result.itemStream] || result.itemStream)}</strong> (risk ${result.itemRisk}/100)</span>
+          <span>${escapeHtml(t(lang, "cascade.downtime"))} <strong>${escapeHtml(t(lang, "cascade.downtimeValue", { n: result.downtimeMin }))}</strong></span>
+          <span>${escapeHtml(t(lang, "cascade.fiberYield"))} <strong>${escapeHtml(t(lang, "cascade.fiberValue", { n: result.baleYieldPct }))}</strong></span>
+          <span>${escapeHtml(t(lang, "cascade.itemVerdict"))} <strong>${escapeHtml(t(lang, "cascade.riskValue", { stream: streamLabel(result.itemStream, lang), risk: result.itemRisk }))}</strong></span>
         </div>
-        <p class="cascade-alt" id="cas-alt-${escapeHtml(result.scenarioId)}"><strong>Safe route:</strong> ${escapeHtml(result.alternative)}</p>
+        <p class="cascade-alt" id="cas-alt-${escapeHtml(result.scenarioId)}"><strong>${escapeHtml(t(lang, "cascade.safeRoute"))}</strong> ${escapeHtml(result.alternative)}</p>
       </section>`;
     })
     .join("");
@@ -147,47 +156,48 @@ export function renderCascadeLab(lab) {
   <div class="cascade-panel">
     <div class="cascade-lab-summary">
       <div class="impact-bar-row">
-        <span class="impact-bar-label">Combined line severity</span>
+        <span class="impact-bar-label">${escapeHtml(t(lang, "cascade.severity"))}</span>
         <span class="impact-bar-track"><span class="impact-bar-fill verdict-dropoff" style="width: ${Math.max(1, lab.combinedSeverity)}%"></span></span>
         <strong class="impact-bar-value tabular">${lab.combinedSeverity}/100</strong>
       </div>
-      <p class="impact-scale tabular">${lab.activeCount} of ${CASCADE_SCENARIO_IDS.length} scenarios active, ${lab.totalItems} contaminant items, worst bale yield ${lab.worstBaleYieldPct}%, modeled downtime ${lab.totalDowntimeMin} min across the lab.</p>
+      <p class="impact-scale tabular">${escapeHtml(t(lang, "cascade.severityValue", { active: lab.activeCount, total: CASCADE_SCENARIO_IDS.length, items: lab.totalItems, pct: lab.worstBaleYieldPct, min: lab.totalDowntimeMin }))}</p>
     </div>
     <div class="cascade-grid">${cards}</div>
-    <p class="field-help">A deterministic model of documented MRF failure modes: each stage engages at a fixed contaminant count and severity can only stay the same or rise. Downtime and yield are illustrative planning figures, not measurements from any facility.</p>
+    <p class="field-help">${escapeHtml(t(lang, "cascade.footerHelp"))}</p>
   </div>`;
 }
 
 /** The signed audit panel: signature details for the current workbench export. */
-export function renderAuditPanel({ signed }) {
+export function renderAuditPanel({ signed }, lang = "en") {
   const digest = signed.signature.digest;
   return `
   <div class="audit-panel">
     <dl class="audit-sig-list tabular">
-      <div><dt>Algorithm</dt><dd>${escapeHtml(signed.signature.algorithm)}</dd></div>
-      <div><dt>Key id</dt><dd>${escapeHtml(signed.signature.keyId)}</dd></div>
-      <div><dt>Digest</dt><dd class="audit-digest">${escapeHtml(digest)}</dd></div>
-      <div><dt>Audit rows</dt><dd>${signed.payload.rows.length} items, ${signed.payload.profiles.length} profiles</dd></div>
+      <div><dt>${escapeHtml(t(lang, "audit.algorithm"))}</dt><dd>${escapeHtml(signed.signature.algorithm)}</dd></div>
+      <div><dt>${escapeHtml(t(lang, "audit.keyId"))}</dt><dd>${escapeHtml(signed.signature.keyId)}</dd></div>
+      <div><dt>${escapeHtml(t(lang, "audit.digest"))}</dt><dd class="audit-digest">${escapeHtml(digest)}</dd></div>
+      <div><dt>${escapeHtml(t(lang, "audit.rows"))}</dt><dd>${escapeHtml(t(lang, "audit.rowsValue", { rows: signed.payload.rows.length, profiles: signed.payload.profiles.length }))}</dd></div>
     </dl>
-    <p class="field-help">HMAC-SHA-256 over the canonical JSON payload. The integrity key ships with the app, so anyone can replay this export here and see the tag recomputed; the signature proves the bytes were not edited after export. It is a self-check integrity tag, not a third-party certificate.</p>
+    <p class="field-help">${escapeHtml(t(lang, "audit.panelHelp"))}</p>
   </div>`;
 }
 
 /** The verify result block under the replay textarea. */
-export function renderAuditVerify(verifyResult) {
+export function renderAuditVerify(verifyResult, lang = "en") {
   if (!verifyResult) {
     return "";
   }
+  const detail = normalizeLang(lang) === "es" ? auditDetailEs(verifyResult) : verifyResult.detail;
   return `<div class="audit-verify-result ${verifyResult.ok ? "verify-ok" : "verify-bad"}" role="status">
     ${renderVerdictIcon(verifyResult.ok ? "recycle" : "dropoff", 16)}
-    <span>${escapeHtml(verifyResult.detail)}</span>
+    <span>${escapeHtml(detail)}</span>
   </div>`;
 }
 
 /** The self-test panel output: aggregate badge plus per-check rows. */
-export function renderSelfTests(result) {
+export function renderSelfTests(result, lang = "en") {
   if (!result) {
-    return `<p class="empty-batch-msg">Not run yet in this tab. The same registry ships in the test suite.</p>`;
+    return `<p class="empty-batch-msg">${escapeHtml(t(lang, "selftest.notRun"))}</p>`;
   }
   const rows = result.results
     .map(
@@ -202,7 +212,7 @@ export function renderSelfTests(result) {
   <div class="selftest-panel">
     <div class="selftest-summary ${result.allPass ? "verify-ok" : "verify-bad"}" role="status">
       ${renderVerdictIcon(result.allPass ? "recycle" : "dropoff", 18)}
-      <strong>${result.passed}/${result.total} self-tests passed${result.allPass ? "" : `, ${result.failed} failed`}</strong>
+      <strong>${escapeHtml(t(lang, "selftest.summary", { passed: result.passed, total: result.total }))}${result.allPass ? "" : escapeHtml(t(lang, "selftest.failed", { n: result.failed }))}</strong>
     </div>
     <ul class="selftest-list">${rows}</ul>
   </div>`;

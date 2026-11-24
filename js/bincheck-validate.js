@@ -64,8 +64,10 @@ export const EVIDENCE_BASES = Object.freeze([
 const LIQUID_CAPABLE = new Set(["resin-1-pet", "resin-2-hdpe", "liquid-full-bottle"]);
 const GLASS_MATERIALS = new Set(["glass-jar-bottle", "broken-glass-ceramic"]);
 
-function issue(code, severity, field, message) {
-  return { code, severity, field, message };
+function issue(code, severity, field, message, params) {
+  const entry = { code, severity, field, message };
+  if (params && typeof params === "object") entry.params = params;
+  return entry;
 }
 
 export function normalizeMaterialToken(token) {
@@ -111,7 +113,7 @@ export function normalizeQuery(raw = {}) {
     if (CITY_IDS.includes(input.city)) {
       query.city = input.city;
     } else {
-      issues.push(issue("INVALID_CITY", "error", "city", `Unknown jurisdiction "${String(input.city).slice(0, 40)}". Use Riverside-tx or houston-tx.`));
+      issues.push(issue("INVALID_CITY", "error", "city", `Unknown jurisdiction "${String(input.city).slice(0, 40)}". Use Riverside-tx or houston-tx.`, { value: String(input.city).slice(0, 40) }));
     }
   }
 
@@ -126,7 +128,7 @@ export function normalizeQuery(raw = {}) {
     if (materialId) {
       query.materialId = materialId;
     } else {
-      issues.push(issue("UNKNOWN_MATERIAL", "error", "materialId", `Unknown material "${materialRaw.slice(0, 40)}". Choose one of the ${MATERIAL_IDS.length} material categories.`));
+      issues.push(issue("UNKNOWN_MATERIAL", "error", "materialId", `Unknown material "${materialRaw.slice(0, 40)}". Choose one of the ${MATERIAL_IDS.length} material categories.`, { value: materialRaw.slice(0, 40), count: MATERIAL_IDS.length }));
     }
   }
 
@@ -144,7 +146,7 @@ export function normalizeQuery(raw = {}) {
     query.condition = conditionRaw;
   } else {
     query.condition = "clean";
-    issues.push(issue("UNKNOWN_CONDITION", "warning", "condition", `Unknown condition "${conditionRaw.slice(0, 40)}". Treated as clean.`));
+    issues.push(issue("UNKNOWN_CONDITION", "warning", "condition", `Unknown condition "${conditionRaw.slice(0, 40)}". Treated as clean.`, { value: conditionRaw.slice(0, 40) }));
   }
 
   return { query, issues };
@@ -164,7 +166,7 @@ export function assessEvidence(raw = {}) {
   if (query.barcode) {
     barcodeCheck = validateBarcodeCheckDigit(query.barcode);
     if (!barcodeCheck.valid) {
-      issues.push(issue("BARCODE_INVALID", "warning", "barcode", barcodeCheck.reason));
+      issues.push(issue("BARCODE_INVALID", "warning", "barcode", barcodeCheck.reason, { reasonCode: barcodeCheck.reasonCode, ...(barcodeCheck.reasonParams || {}) }));
     } else {
       const lookup = lookupProductByBarcode(query.barcode);
       catalogProduct = lookup.product;
@@ -184,7 +186,7 @@ export function assessEvidence(raw = {}) {
   } else if (catalogProduct && hasMaterial) {
     conflict = true;
     basis = "USER_CATEGORY";
-    issues.push(issue("BARCODE_MATERIAL_CONFLICT", "warning", "materialId", `The catalog lists this barcode as ${catalogProduct.materialId}, but ${query.materialId} was selected. The selected category is used.`));
+    issues.push(issue("BARCODE_MATERIAL_CONFLICT", "warning", "materialId", `The catalog lists this barcode as ${catalogProduct.materialId}, but ${query.materialId} was selected. The selected category is used.`, { catalog: catalogProduct.materialId, selected: query.materialId }));
   } else if (hasMaterial) {
     basis = "USER_CATEGORY";
   } else if (hasResin) {
@@ -203,15 +205,15 @@ export function assessEvidence(raw = {}) {
     if (query.resinCode !== identifiedResin) {
       conflict = true;
       const resinDescription = identifiedResin === null ? "no plastic resin code" : `resin code ${identifiedResin}`;
-      issues.push(issue("RESIN_MATERIAL_CONFLICT", "warning", "resinCode", `Resin code ${query.resinCode} contradicts ${rawMaterialId}, which has ${resinDescription}. The identified material is used.`));
+      issues.push(issue("RESIN_MATERIAL_CONFLICT", "warning", "resinCode", `Resin code ${query.resinCode} contradicts ${rawMaterialId}, which has ${resinDescription}. The identified material is used.`, { resinCode: query.resinCode, materialId: rawMaterialId, identified: resinDescription, identifiedResin }));
     }
   }
 
   if (query.condition === "liquid-full" && rawMaterialId && !LIQUID_CAPABLE.has(rawMaterialId)) {
-    issues.push(issue("CONDITION_NOT_APPLICABLE", "warning", "condition", "The liquid condition only changes the rule for #1 PET and #2 HDPE bottles. It was ignored for this material."));
+    issues.push(issue("CONDITION_NOT_APPLICABLE", "warning", "condition", "The liquid condition only changes the rule for #1 PET and #2 HDPE bottles. It was ignored for this material.", { kind: "liquid" }));
   }
   if (query.condition === "broken" && rawMaterialId && !GLASS_MATERIALS.has(rawMaterialId)) {
-    issues.push(issue("CONDITION_NOT_APPLICABLE", "warning", "condition", "The broken condition only changes the rule for glass. It was ignored for this material."));
+    issues.push(issue("CONDITION_NOT_APPLICABLE", "warning", "condition", "The broken condition only changes the rule for glass. It was ignored for this material.", { kind: "broken" }));
   }
   if (query.condition === "greasy" && resolvedMaterialId === "soiled-cardboard-paper") {
     issues.push(issue("GREASY_PAPER_ADVISORY", "warning", "condition", "Grease-soaked paper cannot be repulped, so the city pizza box rule is applied: recycle only the clean part and trash the soiled part. Applying that rule beyond pizza boxes is an inference."));
@@ -294,6 +296,9 @@ export function encodeShareHash(state = {}) {
   }
   if (Object.hasOwn(WORKBENCH_PRESETS, state.workbenchPreset)) {
     add("bin", state.workbenchPreset);
+  }
+  if (state.language === "es") {
+    add("l", "es");
   }
   return parts.length ? `#${parts.join("&")}` : "";
 }
@@ -403,6 +408,12 @@ export function decodeShareHash(hash) {
         patch.workbenchPreset = value;
       } else {
         issues.push(issue("UNKNOWN_PRESET", "warning", "bin", "Share link workbench preset was not recognized."));
+      }
+    } else if (key === "l") {
+      if (value === "en" || value === "es") {
+        patch.language = value;
+      } else {
+        issues.push(issue("UNKNOWN_LANGUAGE", "warning", "l", "Share link language was not recognized."));
       }
     }
   }

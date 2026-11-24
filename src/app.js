@@ -14,9 +14,20 @@ import {
   renderPrintReport,
   renderShortcutList,
   renderSearchResults,
-  renderImpact
+  renderImpact,
+  escapeHtml
 } from "./render.js";
 import { searchItems, computeContaminationImpact } from "./insights.js";
+import {
+  t,
+  normalizeLang,
+  LANGUAGE_STORAGE_KEY,
+  materialTitleEs,
+  conditionLabelEs,
+  profileNameEs,
+  CATALOG_ES,
+  BASKETS_ES
+} from "../js/bincheck-i18n.js";
 import { buildSignedAudit, signedAuditToJson, signedAuditToCsv, signedAuditToMarkdown, verifySignedAudit } from "../js/bincheck-audit.js";
 import { runSelfTests } from "../js/bincheck-selftest.js";
 import { WORKBENCH_PRESETS } from "../js/bincheck-municipal.js";
@@ -98,6 +109,42 @@ export const GUIDED_DEMOS = {
 
 const NOTICE_MS = 6000;
 const SHORTCUTS_STORAGE_KEY = "bincheck:single-key-shortcuts";
+
+/**
+ * One captured original (from the authored English markup) per translatable
+ * node or attribute. English always restores the capture, so en output stays
+ * byte-identical to the checked-in HTML; Spanish swaps in dictionary text.
+ */
+function captureI18nNodes(doc) {
+  const textNodes = [];
+  const attrNodes = [];
+  const htmlNodes = [];
+  doc.querySelectorAll("[data-i18n]").forEach((el) => {
+    textNodes.push({ el, key: el.getAttribute("data-i18n"), orig: el.textContent });
+  });
+  doc.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    htmlNodes.push({ el, key: el.getAttribute("data-i18n-html"), orig: el.innerHTML });
+  });
+  for (const [attrName, domAttr] of [["data-i18n-aria", "aria-label"], ["data-i18n-ph", "placeholder"], ["data-i18n-title", "title"], ["data-i18n-alt", "alt"], ["data-i18n-dl", "data-label"], ["data-i18n-content", "content"]]) {
+    doc.querySelectorAll(`[${attrName}]`).forEach((el) => {
+      attrNodes.push({ el, key: el.getAttribute(attrName), attr: domAttr, orig: el.getAttribute(domAttr) });
+    });
+  }
+  return { textNodes, htmlNodes, attrNodes };
+}
+
+function applyI18nNodes(captured, lang) {
+  const es = normalizeLang(lang) === "es";
+  for (const node of captured.textNodes) {
+    node.el.textContent = es ? t("es", node.key) : node.orig;
+  }
+  for (const node of captured.htmlNodes) {
+    node.el.innerHTML = es ? t("es", node.key) : node.orig;
+  }
+  for (const node of captured.attrNodes) {
+    node.el.setAttribute(node.attr, es ? t("es", node.key) : node.orig);
+  }
+}
 
 function defaultDownload(doc, win, filename, mime, text) {
   const blob = new win.Blob([text], { type: `${mime};charset=utf-8` });
@@ -197,7 +244,11 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   let lastHash = null;
   let lastLive = "";
   let renderedSingleKey = null;
+  let renderedLang = null;
   let searchQuery = "";
+  const i18nNodes = captureI18nNodes(doc);
+  const metaDescription = doc.querySelector ? doc.querySelector('meta[name="description"]') : null;
+  const metaDescriptionEn = metaDescription ? metaDescription.getAttribute("content") : null;
   let impactClean = 20;
   let impactCount = 1;
   const SEARCHABLE_COUNT = VERIFIED_BARCODE_CATALOG.length + Object.keys(MATERIAL_CATEGORIES).length;
@@ -227,25 +278,129 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     }
   }
 
+  function readLanguagePref() {
+    try {
+      return storage && typeof storage.getItem === "function" ? storage.getItem(LANGUAGE_STORAGE_KEY) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeLanguagePref(lang) {
+    try {
+      if (storage && typeof storage.setItem === "function") {
+        storage.setItem(LANGUAGE_STORAGE_KEY, normalizeLang(lang));
+      }
+    } catch {
+      // Storage can be unavailable or full; the toggle still works for the session.
+    }
+  }
+
+  function catalogOptionText(item, lang) {
+    const name = normalizeLang(lang) === "es" ? CATALOG_ES[item.upc] || item.productName : item.productName;
+    return `${item.upc} - ${name}`;
+  }
+
+  function localizeSelectOptions(lang) {
+    const es = normalizeLang(lang) === "es";
+    if (els.materialSelect) {
+      for (const option of els.materialSelect.options || []) {
+        if (!option.value) continue;
+        if (!option.i18nOrig) option.i18nOrig = option.textContent;
+        option.textContent = es ? materialTitleEs(option.value) : option.i18nOrig;
+      }
+    }
+    if (els.conditionSelect) {
+      for (const option of els.conditionSelect.options || []) {
+        if (!option.value) continue;
+        if (!option.i18nOrig) option.i18nOrig = option.textContent;
+        option.textContent = es ? conditionLabelEs(option.value) : option.i18nOrig;
+      }
+    }
+    if (els.catalogSelect) {
+      for (const option of els.catalogSelect.options || []) {
+        if (!option.i18nOrig) option.i18nOrig = option.textContent;
+        if (!option.value) {
+          option.textContent = es ? t("es", "catalog.choose") : option.i18nOrig;
+          continue;
+        }
+        const item = VERIFIED_BARCODE_CATALOG.find((entry) => entry.upc === option.value);
+        option.textContent = item ? catalogOptionText(item, lang) : option.i18nOrig;
+      }
+    }
+    for (const selectEl of [els.municipalProfileA, els.municipalProfileB]) {
+      if (!selectEl) continue;
+      for (const option of selectEl.options || []) {
+        if (!option.i18nOrig) option.i18nOrig = option.textContent;
+        option.textContent = es ? profileNameEs(option.value, "name") : option.i18nOrig;
+      }
+    }
+    if (els.municipalBasket) {
+      for (const option of els.municipalBasket.options || []) {
+        if (!option.i18nOrig) option.i18nOrig = option.textContent;
+        const basket = BASKETS_ES[option.value];
+        option.textContent = es && basket ? basket.name : option.i18nOrig;
+      }
+    }
+    if (els.statBarcodes) {
+      els.statBarcodes.textContent = t(lang, "stats.gs1Codes", { n: VERIFIED_BARCODE_CATALOG.length });
+    }
+    if (els.statMaterials) {
+      els.statMaterials.textContent = t(lang, "stats.materialsCount", { n: Object.keys(MATERIAL_CATEGORIES).length });
+    }
+    if (els.statCities) {
+      els.statCities.textContent = t(lang, "stats.citiesCount", { n: Object.keys(SUPPORTED_CITIES).length });
+    }
+  }
+
+  /**
+   * Re-stamps every static string in the document chrome for `lang`: captured
+   * data-i18n nodes, select options, document title, meta description and the
+   * html lang attribute. Rendering output is localized separately via `lang`
+   * arguments to the render functions.
+   */
+  function applyLanguage(lang) {
+    const normalized = normalizeLang(lang);
+    applyI18nNodes(i18nNodes, normalized);
+    localizeSelectOptions(normalized);
+    if (doc.documentElement) {
+      doc.documentElement.setAttribute("lang", normalized);
+    }
+    if (typeof doc.title === "string" || doc.title === "") {
+      doc.title = t(normalized, "title.page");
+    }
+    if (metaDescription) {
+      metaDescription.setAttribute("content", normalized === "es" ? t("es", "meta.description") : metaDescriptionEn);
+    }
+    doc.querySelectorAll("[data-lang]").forEach((btn) => {
+      const active = btn.getAttribute("data-lang") === normalized;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
   function renderSearch() {
-    const result = searchItems(searchQuery);
-    els.searchResults.innerHTML = renderSearchResults(result);
+    const lang = state.language;
+    const result = searchItems(searchQuery, { lang });
+    els.searchResults.innerHTML = renderSearchResults(result, lang);
     els.searchCount.textContent = result.query
-      ? `${result.total} ${result.partial ? "close " : ""}match${result.total === 1 ? "" : "es"}`
-      : `${SEARCHABLE_COUNT} items`;
+      ? t(lang, result.partial ? "search.closeMatches" : "search.matches", { n: result.total })
+      : t(lang, "search.itemsCount", { n: SEARCHABLE_COUNT });
   }
 
   function renderImpactPanel(vm) {
+    const lang = state.language;
     const impact = computeContaminationImpact({
       query: vm.query,
       city: vm.activeCity,
       cleanCount: impactClean,
-      itemCount: impactCount
+      itemCount: impactCount,
+      lang
     });
     els.impactCleanValue.textContent = String(impact.cleanCount);
     els.impactCountValue.textContent = String(impact.itemCount);
     els.impactItemLabel.textContent = `${impact.itemTitle}, ${impact.city === "houston-tx" ? "Houston" : "Riverside"}`;
-    els.impactOutput.innerHTML = renderImpact(impact);
+    els.impactOutput.innerHTML = renderImpact(impact, lang);
   }
 
   function setIfDifferent(element, prop, value) {
@@ -279,6 +434,13 @@ export function createApp({ document: doc, window: win, deps = {} }) {
 
   function render() {
     const vm = selectViewModel(state);
+    const lang = state.language;
+
+    if (lang !== renderedLang) {
+      renderedLang = lang;
+      applyLanguage(lang);
+      renderSearch();
+    }
 
     setIfDifferent(els.barcodeInput, "value", state.draftBarcode !== null ? state.draftBarcode : state.barcode || "");
     setIfDifferent(els.materialSelect, "value", state.materialId);
@@ -309,20 +471,21 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         el.setAttribute("aria-keyshortcuts", keys);
       }
     }
-    if (singleKeyOn !== renderedSingleKey) {
-      renderedSingleKey = singleKeyOn;
-      els.shortcutList.innerHTML = renderShortcutList(singleKeyOn);
+    const helpKey = `${singleKeyOn ? "on" : "off"}|${lang}`;
+    if (helpKey !== renderedSingleKey) {
+      renderedSingleKey = helpKey;
+      els.shortcutList.innerHTML = renderShortcutList(singleKeyOn, lang);
     }
 
     els.barcodeStatus.className = `barcode-status tabular ${vm.barcodeStatus.tone === "idle" ? "" : vm.barcodeStatus.tone}`.trim();
     els.barcodeStatus.textContent = vm.barcodeStatus.text;
     els.barcodeInput.setAttribute("aria-invalid", vm.barcodeStatus.invalid ? "true" : "false");
-    els.barcodeMathStrip.innerHTML = renderBarcodeMathStrip(vm.barcodeCheck);
+    els.barcodeMathStrip.innerHTML = renderBarcodeMathStrip(vm.barcodeCheck, lang);
 
     els.evaluationOutput.innerHTML =
       state.cityMode === "compare"
-        ? renderComparisonView(vm.comparison, vm.assessment)
-        : renderSingleEvaluation(vm.evaluation, vm.assessment);
+        ? renderComparisonView(vm.comparison, vm.assessment, lang)
+        : renderSingleEvaluation(vm.evaluation, vm.assessment, lang);
     if (lastLive !== vm.liveSummary) {
       lastLive = vm.liveSummary;
       els.resultLive.textContent = vm.liveSummary;
@@ -330,7 +493,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
 
     renderImpactPanel(vm);
 
-    const cart = renderCart(vm.cartSummary);
+    const cart = renderCart(vm.cartSummary, lang);
     els.batchBadge.className = cart.badgeClass;
     els.batchBadge.textContent = cart.badgeText;
     els.batchContainer.innerHTML = cart.html;
@@ -339,23 +502,23 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       els.csvInput.value = state.csvText;
     }
     if (state.batchResult) {
-      els.csvResults.innerHTML = renderBatchReport(state.batchResult);
+      els.csvResults.innerHTML = renderBatchReport(state.batchResult, lang);
     } else {
-      els.csvResults.innerHTML = `<p class="empty-batch-msg">No batch yet. Load the sample or paste your own rows, then choose Run inspection.</p>`;
+      els.csvResults.innerHTML = `<p class="empty-batch-msg">${escapeHtml(t(lang, "csv.empty"))}</p>`;
     }
     const hasRows = Boolean(state.batchResult && state.batchResult.rows.length > 0);
     els.exportCsvBtn.disabled = !hasRows;
     els.exportJsonBtn.disabled = !hasRows;
 
     if (state.benchmarkResult) {
-      els.benchmarkOutput.innerHTML = renderBenchmark(state.benchmarkResult);
+      els.benchmarkOutput.innerHTML = renderBenchmark(state.benchmarkResult, lang);
     }
     els.benchmarkExportBtn.disabled = !state.benchmarkResult;
 
     setIfDifferent(els.municipalProfileA, "value", state.municipalProfileA);
     setIfDifferent(els.municipalProfileB, "value", state.municipalProfileB);
     setIfDifferent(els.municipalBasket, "value", state.municipalBasket);
-    els.municipalDiffOutput.innerHTML = renderMunicipalDiff(vm.workbench.diff);
+    els.municipalDiffOutput.innerHTML = renderMunicipalDiff(vm.workbench.diff, lang);
 
     for (const slider of cascadeSliders) {
       const id = slider.getAttribute("data-cascade");
@@ -366,11 +529,11 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         setIfDifferent(valueEl, "textContent", String(count));
       }
     }
-    els.cascadeOutput.innerHTML = renderCascadeLab(vm.workbench.cascade);
+    els.cascadeOutput.innerHTML = renderCascadeLab(vm.workbench.cascade, lang);
 
-    els.auditPanelOutput.innerHTML = renderAuditPanel({ signed: currentSignedAudit() });
-    els.auditVerifyOutput.innerHTML = renderAuditVerify(state.auditResult);
-    els.selftestOutput.innerHTML = renderSelfTests(state.selfTestResult);
+    els.auditPanelOutput.innerHTML = renderAuditPanel({ signed: currentSignedAudit() }, lang);
+    els.auditVerifyOutput.innerHTML = renderAuditVerify(state.auditResult, lang);
+    els.selftestOutput.innerHTML = renderSelfTests(state.selfTestResult, lang);
 
     els.statusLive.textContent = state.notice;
     if (noticeTimer) {
@@ -389,6 +552,9 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     if (next !== state) {
       if (action.type === "SET_SINGLE_KEY_SHORTCUTS" && next.singleKeyShortcuts !== state.singleKeyShortcuts) {
         writeShortcutPref(next.singleKeyShortcuts !== false);
+      }
+      if (action.type === "SET_LANGUAGE" && next.language !== state.language) {
+        writeLanguagePref(next.language);
       }
       state = next;
       render();
@@ -422,7 +588,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     const nav = win.navigator;
     if (!nav || !nav.mediaDevices || !nav.mediaDevices.getUserMedia) {
       els.barcodeStatus.className = "barcode-status invalid tabular";
-      els.barcodeStatus.textContent = "Camera API unavailable in this browser context; use keyboard UPC entry or the demo catalog.";
+      els.barcodeStatus.textContent = t(state.language, "status.cameraUnavailable");
       return;
     }
     const request = { cancelled: false };
@@ -467,13 +633,13 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         }, 450);
       } else {
         els.barcodeStatus.className = "barcode-status valid tabular";
-        els.barcodeStatus.textContent = "Camera preview active. This browser cannot read barcodes automatically; type the printed 12-digit code in the field above.";
+        els.barcodeStatus.textContent = t(state.language, "status.cameraManual");
       }
     } catch {
       if (request.cancelled || destroyed) return;
       stopCamera();
       els.barcodeStatus.className = "barcode-status invalid tabular";
-      els.barcodeStatus.textContent = "Camera permission declined or unavailable; use direct UPC input or pick from the demo catalog.";
+      els.barcodeStatus.textContent = t(state.language, "status.cameraDenied");
     } finally {
       if (cameraRequest === request) {
         cameraRequest = null;
@@ -495,9 +661,9 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     const url = currentShareUrl();
     try {
       await win.navigator.clipboard.writeText(url);
-      dispatch({ type: "SET_NOTICE", text: "Share link copied to the clipboard." });
+      dispatch({ type: "SET_NOTICE", text: t(state.language, "notice.shareCopied") });
     } catch {
-      dispatch({ type: "SET_NOTICE", text: `Copy this link: ${url}` });
+      dispatch({ type: "SET_NOTICE", text: t(state.language, "notice.shareFallback", { url }) });
     }
   }
 
@@ -505,7 +671,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     const body = doc.body;
     if (mode === "report") {
       const vm = selectViewModel(state);
-      els.printReport.innerHTML = renderPrintReport(vm, state.batchResult);
+      els.printReport.innerHTML = renderPrintReport(vm, state.batchResult, state.language);
     }
     body.setAttribute("data-print-mode", mode);
     const cleanup = () => {
@@ -629,6 +795,9 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       case "close-help":
         closeHelp();
         break;
+      case "language":
+        dispatch({ type: "SET_LANGUAGE", language: state.language === "es" ? "en" : "es" });
+        break;
       default:
         break;
     }
@@ -644,6 +813,9 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     if (!actionEl) return;
     const action = actionEl.getAttribute("data-action");
     switch (action) {
+      case "set-language":
+        dispatch({ type: "SET_LANGUAGE", language: actionEl.getAttribute("data-lang") });
+        break;
       case "set-city":
         dispatch({ type: "SET_CITY_MODE", mode: actionEl.getAttribute("data-city-mode") });
         sweep();
@@ -757,17 +929,17 @@ export function createApp({ document: doc, window: win, deps = {} }) {
         const text = signedAuditToJson(currentSignedAudit());
         try {
           win.navigator.clipboard.writeText(text).then(
-            () => dispatch({ type: "SET_NOTICE", text: "Signed audit JSON copied to the clipboard." }),
-            () => dispatch({ type: "SET_NOTICE", text: "Clipboard unavailable; use Download signed JSON instead." })
+            () => dispatch({ type: "SET_NOTICE", text: t(state.language, "notice.auditCopied") }),
+            () => dispatch({ type: "SET_NOTICE", text: t(state.language, "notice.clipboardUnavailable") })
           );
         } catch {
-          dispatch({ type: "SET_NOTICE", text: "Clipboard unavailable; use Download signed JSON instead." });
+          dispatch({ type: "SET_NOTICE", text: t(state.language, "notice.clipboardUnavailable") });
         }
         break;
       }
       case "load-audit-demo": {
         els.auditVerifyInput.value = signedAuditToJson(currentSignedAudit());
-        dispatch({ type: "SET_NOTICE", text: "Current signed export loaded into the replay box." });
+        dispatch({ type: "SET_NOTICE", text: t(state.language, "notice.auditDemoLoaded") });
         break;
       }
       case "verify-audit":
@@ -865,7 +1037,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       const file = target.files && target.files[0];
       if (!file) return;
       if (file.size > BATCH_LIMITS.maxBytes) {
-        dispatch({ type: "SET_NOTICE", text: `File is ${file.size} bytes. The limit is ${BATCH_LIMITS.maxBytes} bytes.` });
+        dispatch({ type: "SET_NOTICE", text: t(state.language, "notice.fileTooLarge", { size: file.size, max: BATCH_LIMITS.maxBytes }) });
       } else {
         try {
           if (typeof file.arrayBuffer === "function") {
@@ -877,7 +1049,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
             dispatch({ type: "RUN_BATCH" });
           }
         } catch {
-          dispatch({ type: "SET_NOTICE", text: "That file could not be read." });
+          dispatch({ type: "SET_NOTICE", text: t(state.language, "notice.fileUnreadable") });
         }
       }
       target.value = "";
@@ -950,13 +1122,18 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   for (const item of VERIFIED_BARCODE_CATALOG) {
     const option = doc.createElement("option");
     option.value = item.upc;
-    option.textContent = `${item.upc} - ${item.productName}`;
+    option.textContent = catalogOptionText(item, "en");
     els.catalogSelect.appendChild(option);
   }
-  els.statBarcodes.textContent = `${VERIFIED_BARCODE_CATALOG.length} GS1 codes`;
-  els.statMaterials.textContent = `${Object.keys(MATERIAL_CATEGORIES).length} Streams`;
-  els.statCities.textContent = `${Object.keys(SUPPORTED_CITIES).length} Cities`;
+  els.statBarcodes.textContent = t("en", "stats.gs1Codes", { n: VERIFIED_BARCODE_CATALOG.length });
+  els.statMaterials.textContent = t("en", "stats.materialsCount", { n: Object.keys(MATERIAL_CATEGORIES).length });
+  els.statCities.textContent = t("en", "stats.citiesCount", { n: Object.keys(SUPPORTED_CITIES).length });
 
+  // The stored language wins over the default but loses to a share-hash l=.
+  const storedLang = normalizeLang(readLanguagePref());
+  if (storedLang !== state.language) {
+    state = { ...state, language: storedLang };
+  }
   const hydrated = decodeShareHash(win.location && win.location.hash);
   if (Object.keys(hydrated.patch).length > 0) {
     state = reduce(state, { type: "HYDRATE", patch: hydrated.patch });
@@ -964,7 +1141,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
   if (hydrated.issues.length > 0) {
     state = reduce(state, {
       type: "SET_NOTICE",
-      text: `Share link: ${hydrated.issues.length} unreadable value${hydrated.issues.length === 1 ? " was" : "s were"} ignored.`
+      text: t(state.language, "notice.hashIgnored", { n: hydrated.issues.length })
     });
   }
   if (readShortcutPref() === "off") {

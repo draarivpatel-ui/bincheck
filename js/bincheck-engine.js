@@ -614,7 +614,9 @@ export function validateBarcodeCheckDigit(rawBarcode) {
       format: "EMPTY",
       expectedCheckDigit: null,
       actualCheckDigit: null,
-      reason: "Barcode input is empty."
+      reason: "Barcode input is empty.",
+      reasonCode: "empty",
+      reasonParams: {}
     };
   }
 
@@ -626,7 +628,9 @@ export function validateBarcodeCheckDigit(rawBarcode) {
       format: "NON_NUMERIC",
       expectedCheckDigit: null,
       actualCheckDigit: null,
-      reason: "Barcode must contain only digits (0-9), spaces, or hyphens."
+      reason: "Barcode must contain only digits (0-9), spaces, or hyphens.",
+      reasonCode: "non_numeric",
+      reasonParams: {}
     };
   }
 
@@ -638,7 +642,9 @@ export function validateBarcodeCheckDigit(rawBarcode) {
       format: "INVALID_LENGTH",
       expectedCheckDigit: null,
       actualCheckDigit: null,
-      reason: `Expected 8 (EAN-8), 12 (UPC-A), or 13 (EAN-13) digits, received ${digitsOnly.length}.`
+      reason: `Expected 8 (EAN-8), 12 (UPC-A), or 13 (EAN-13) digits, received ${digitsOnly.length}.`,
+      reasonCode: "invalid_length",
+      reasonParams: { count: digitsOnly.length }
     };
   }
 
@@ -675,7 +681,11 @@ export function validateBarcodeCheckDigit(rawBarcode) {
     actualCheckDigit,
     reason: isCheckValid
       ? `Valid ${format} barcode (GS1 Modulo-10 check digit ${actualCheckDigit} verified).`
-      : `Invalid ${format} check digit: expected ${expectedCheckDigit}, found ${actualCheckDigit}.`
+      : `Invalid ${format} check digit: expected ${expectedCheckDigit}, found ${actualCheckDigit}.`,
+    reasonCode: isCheckValid ? "valid" : "bad_check_digit",
+    reasonParams: isCheckValid
+      ? { format, actual: actualCheckDigit }
+      : { format, expected: expectedCheckDigit, actual: actualCheckDigit }
   };
 }
 

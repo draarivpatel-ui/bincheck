@@ -26,6 +26,22 @@ import {
   WORKBENCH_PRESETS
 } from "../js/bincheck-municipal.js";
 import { normalizeCascadeId, clampCascadeCount, runCascadeLab } from "../js/bincheck-cascade.js";
+import {
+  t,
+  normalizeLang,
+  SUPPORTED_LANGS,
+  barcodeReasonEs,
+  parseErrorMessageEs,
+  tierLabelEs,
+  confidenceLabelEs,
+  localizeEvaluation,
+  localizeComparison,
+  localizeAssessment,
+  localizeCartSummary,
+  localizeDiff,
+  localizeCascadeLab,
+  PRESETS_ES
+} from "../js/bincheck-i18n.js";
 
 export const MAX_CART_ITEMS = 50;
 
@@ -39,6 +55,7 @@ export const SHORTCUTS = Object.freeze([
   Object.freeze({ key: "r", id: "run-benchmark", description: "Run the calibration benchmark" }),
   Object.freeze({ key: "d", id: "download-report", description: "Download the inspection report as JSON" }),
   Object.freeze({ key: "p", id: "print-report", description: "Print the inspection report" }),
+  Object.freeze({ key: "l", id: "language", description: "Switch between English and Spanish" }),
   Object.freeze({ key: "?", id: "open-help", description: "Show this shortcut list" }),
   Object.freeze({ key: "Escape", id: "close-help", description: "Close the shortcut list" })
 ]);
@@ -68,6 +85,7 @@ export function createInitialState(overrides = {}) {
     auditInput: "",
     auditResult: null,
     singleKeyShortcuts: true,
+    language: "en",
     notice: "",
     ...overrides
   };
@@ -83,7 +101,20 @@ export function reduce(state, action) {
   if (!action || typeof action.type !== "string") {
     return state;
   }
+  const lang = state.language === "es" ? "es" : "en";
+  const reasonText = (validation) => (lang === "es" ? barcodeReasonEs(validation) : validation.reason);
   switch (action.type) {
+    case "SET_LANGUAGE": {
+      const language = normalizeLang(action.language);
+      if (language === state.language) {
+        return state;
+      }
+      return {
+        ...state,
+        language,
+        notice: t(language, "notice.languageSet")
+      };
+    }
     case "SET_CITY_MODE": {
       if (!CITY_MODES.includes(action.mode)) {
         return state;
@@ -100,13 +131,13 @@ export function reduce(state, action) {
       if (lookup.found && lookup.product) {
         next.materialId = lookup.product.materialId;
         next.resinCode = lookup.product.resinCode;
-        next.notice = `Matched ${lookup.product.productName}.`;
+        next.notice = t(lang, "notice.matchedProduct", { name: lookup.product.productName });
       } else if (barcode === "") {
-        next.notice = "Barcode cleared.";
+        next.notice = t(lang, "notice.barcodeCleared");
       } else if (!lookup.validation.valid) {
-        next.notice = `Barcode rejected: ${lookup.validation.reason}`;
+        next.notice = t(lang, "notice.barcodeRejected", { reason: reasonText(lookup.validation) });
       } else {
-        next.notice = "Valid barcode, not in the demo catalog. Using the selected category.";
+        next.notice = t(lang, "notice.barcodeNotInCatalog");
       }
       return next;
     }
@@ -122,7 +153,7 @@ export function reduce(state, action) {
         draftBarcode: null,
         resinCode: code,
         materialId: meta.defaultMaterialId,
-        notice: `Resin code ${code} selected.`
+        notice: t(lang, "notice.resinSelected", { code })
       };
     }
     case "SELECT_MATERIAL": {
@@ -157,12 +188,12 @@ export function reduce(state, action) {
         resinCode: scenario.resinCode ?? null,
         condition: VALID_CONDITIONS.includes(scenario.condition) ? scenario.condition : "clean",
         cityMode: scenario.forceMode && CITY_MODES.includes(scenario.forceMode) ? scenario.forceMode : state.cityMode,
-        notice: "Scenario loaded."
+        notice: t(lang, "notice.scenarioLoaded")
       };
     }
     case "ADD_TO_CART": {
       if (state.batchItems.length >= MAX_CART_ITEMS) {
-        return { ...state, notice: `Cart is full (${MAX_CART_ITEMS} items). Remove an item first.` };
+        return { ...state, notice: t(lang, "notice.cartFull", { n: MAX_CART_ITEMS }) };
       }
       return {
         ...state,
@@ -175,7 +206,7 @@ export function reduce(state, action) {
             condition: state.condition
           }
         ],
-        notice: `Item added. Cart now holds ${state.batchItems.length + 1}.`
+        notice: t(lang, "notice.itemAdded", { n: state.batchItems.length + 1 })
       };
     }
     case "REMOVE_FROM_CART": {
@@ -186,17 +217,18 @@ export function reduce(state, action) {
       return {
         ...state,
         batchItems: state.batchItems.filter((_, position) => position !== index),
-        notice: "Item removed from the cart."
+        notice: t(lang, "notice.itemRemoved")
       };
     }
     case "CLEAR_CART": {
-      return { ...state, batchItems: [], notice: "Cart emptied." };
+      return { ...state, batchItems: [], notice: t(lang, "notice.cartEmptied") };
     }
     case "HYDRATE": {
       const patch = action.patch || {};
       const next = { ...state };
       const hasBarcode = typeof patch.barcode === "string";
       const hasMaterial = MATERIAL_IDS.includes(patch.materialId);
+      if (SUPPORTED_LANGS.includes(patch.language)) next.language = normalizeLang(patch.language);
       if (CITY_MODES.includes(patch.cityMode)) next.cityMode = patch.cityMode;
       if (hasBarcode) next.barcode = patch.barcode;
       if (hasMaterial) {
@@ -258,7 +290,7 @@ export function reduce(state, action) {
       return { ...state, csvText: String(action.text ?? "") };
     }
     case "LOAD_SAMPLE_CSV": {
-      return { ...state, csvText: SAMPLE_BATCH_CSV, batchResult: null, notice: "Synthetic sample CSV loaded. Choose Run inspection." };
+      return { ...state, csvText: SAMPLE_BATCH_CSV, batchResult: null, notice: t(lang, "notice.sampleLoaded") };
     }
     case "RUN_BATCH": {
       const result = runBatchFromCsv(state.csvText);
@@ -267,8 +299,8 @@ export function reduce(state, action) {
         ...state,
         batchResult: result,
         notice: blocking
-          ? result.parse.errors[0].message
-          : `Inspected ${result.totals.rows} rows: ${result.totals.evaluated} evaluated, ${result.totals.errors} could not be identified.`
+          ? (lang === "es" ? parseErrorMessageEs(result.parse.errors[0]) : result.parse.errors[0].message)
+          : t(lang, "notice.batchDone", { rows: result.totals.rows, evaluated: result.totals.evaluated, errors: result.totals.errors })
       };
     }
     case "RUN_BATCH_FILE": {
@@ -276,19 +308,19 @@ export function reduce(state, action) {
       const blocking = result.rows.length === 0 && result.parse.errors.length > 0;
       const decodedNote =
         !blocking && result.parse.encoding && result.parse.encoding !== "utf-8"
-          ? ` (decoded from ${result.parse.encoding.toUpperCase()})`
+          ? t(lang, "notice.decodedNote", { enc: result.parse.encoding.toUpperCase() })
           : "";
       return {
         ...state,
         csvText: typeof result.decodedText === "string" ? result.decodedText : state.csvText,
         batchResult: result,
         notice: blocking
-          ? result.parse.errors[0].message
-          : `Inspected ${result.totals.rows} rows: ${result.totals.evaluated} evaluated, ${result.totals.errors} could not be identified.${decodedNote}`
+          ? (lang === "es" ? parseErrorMessageEs(result.parse.errors[0]) : result.parse.errors[0].message)
+          : t(lang, "notice.batchDone", { rows: result.totals.rows, evaluated: result.totals.evaluated, errors: result.totals.errors }) + decodedNote
       };
     }
     case "CLEAR_BATCH": {
-      return { ...state, csvText: "", batchResult: null, notice: "Batch cleared." };
+      return { ...state, csvText: "", batchResult: null, notice: t(lang, "notice.batchCleared") };
     }
     case "SET_BENCHMARK": {
       if (!action.result || !action.result.cart) {
@@ -297,7 +329,7 @@ export function reduce(state, action) {
       return {
         ...state,
         benchmarkResult: action.result,
-        notice: `Benchmark finished: ${action.result.failures.length} failures across ${action.result.meta.scoredEvaluations} evaluations.`
+        notice: t(lang, "notice.benchmarkDone", { failures: action.result.failures.length, evaluations: action.result.meta.scoredEvaluations })
       };
     }
     case "SET_MUNICIPAL_PROFILE": {
@@ -339,7 +371,7 @@ export function reduce(state, action) {
       if (Object.keys(state.cascadeCounts).length === 0 && !state.workbenchPreset) {
         return state;
       }
-      return { ...state, cascadeCounts: {}, workbenchPreset: null, notice: "Cascade lab reset." };
+      return { ...state, cascadeCounts: {}, workbenchPreset: null, notice: t(lang, "notice.cascadeReset") };
     }
     case "APPLY_WORKBENCH_PRESET": {
       const preset = WORKBENCH_PRESETS[action.presetId];
@@ -354,7 +386,7 @@ export function reduce(state, action) {
         municipalProfileB: normalizeProfileId(patch.profileB) || state.municipalProfileB,
         municipalBasket: normalizeBasketId(patch.basketId) || state.municipalBasket,
         cascadeCounts: patch.cascadeCounts ? { ...patch.cascadeCounts } : state.cascadeCounts,
-        notice: `Preset "${preset.name}" loaded.`
+        notice: t(lang, "notice.presetLoaded", { name: lang === "es" && PRESETS_ES[preset.id] ? PRESETS_ES[preset.id].name : preset.name })
       };
     }
     case "SET_SELFTEST_RESULT": {
@@ -365,8 +397,8 @@ export function reduce(state, action) {
         ...state,
         selfTestResult: action.result,
         notice: action.result.allPass
-          ? `Self-tests: ${action.result.passed}/${action.result.total} passed.`
-          : `Self-tests: ${action.result.failed} of ${action.result.total} FAILED.`
+          ? t(lang, "notice.selftestPass", { passed: action.result.passed, total: action.result.total })
+          : t(lang, "notice.selftestFail", { failed: action.result.failed, total: action.result.total })
       };
     }
     case "SET_AUDIT_INPUT": {
@@ -379,7 +411,7 @@ export function reduce(state, action) {
       return {
         ...state,
         auditResult: action.result,
-        notice: action.result.ok ? "Signed audit verified intact." : "Audit check failed: see the verifier panel."
+        notice: action.result.ok ? t(lang, "notice.auditOk") : t(lang, "notice.auditFail")
       };
     }
     case "SET_SINGLE_KEY_SHORTCUTS": {
@@ -391,8 +423,8 @@ export function reduce(state, action) {
         ...state,
         singleKeyShortcuts: enabled,
         notice: enabled
-          ? "Single-key shortcuts on."
-          : "Single-key shortcuts off. Escape and Ctrl+Enter still work, and every action stays available by mouse or touch."
+          ? t(lang, "notice.singleKeyOn")
+          : t(lang, "notice.singleKeyOff")
       };
     }
     case "SET_NOTICE": {
@@ -406,35 +438,37 @@ export function reduce(state, action) {
   }
 }
 
-function buildBarcodeStatus(raw) {
+function buildBarcodeStatus(raw, lang = "en") {
   const text = String(raw ?? "");
   if (text.trim() === "") {
     return {
       tone: "idle",
       invalid: false,
-      text: "Enter any 12-digit UPC-A or 13-digit EAN-13 barcode, or choose a material category below."
+      text: t(lang, "barcode.statusIdle")
     };
   }
   const lookup = lookupProductByBarcode(text);
+  const reason = lang === "es" ? barcodeReasonEs(lookup.validation) : lookup.validation.reason;
   if (!lookup.validation.valid) {
-    return { tone: "invalid", invalid: true, text: lookup.validation.reason };
+    return { tone: "invalid", invalid: true, text: reason };
   }
   if (lookup.found) {
     return {
       tone: "valid",
       invalid: false,
-      text: `${lookup.validation.reason} Matched: ${lookup.product.productName} (${lookup.product.packagingSummary}).`
+      text: `${reason} ${t(lang, "barcode.statusMatched", { name: lookup.product.productName, pack: lookup.product.packagingSummary })}`
     };
   }
   return {
     tone: "valid",
     invalid: false,
-    text: `${lookup.validation.reason} Not in the demo catalog; evaluating using the selected material or resin rule.`
+    text: `${reason} ${t(lang, "barcode.statusUnmatched")}`
   };
 }
 
 /** Derives everything the renderers need from state. Pure. */
 export function selectViewModel(state) {
+  const lang = state.language === "es" ? "es" : "en";
   const query = {
     barcode: state.barcode,
     materialId: state.materialId,
@@ -442,29 +476,49 @@ export function selectViewModel(state) {
     condition: state.condition
   };
   const activeCity = state.cityMode === "houston-tx" ? "houston-tx" : "Riverside-tx";
-  const assessment = assessEvidence(query);
-  const comparison = compareJurisdictions(query);
-  const evaluation = state.cityMode === "compare" ? null : evaluateItemDisposal({ ...query, city: activeCity });
+  const rawAssessment = assessEvidence(query);
+  const rawComparison = compareJurisdictions(query);
+  const rawEvaluation = state.cityMode === "compare" ? null : evaluateItemDisposal({ ...query, city: activeCity });
   const statusSource = state.draftBarcode !== null ? state.draftBarcode : state.barcode;
-  const cartSummary = scoreCartBatch(state.batchItems, activeCity);
+  const rawCart = scoreCartBatch(state.batchItems, activeCity);
+  const rawDiff = compareProfiles(state.municipalProfileA, state.municipalProfileB, state.municipalBasket);
+  const rawCascade = runCascadeLab(state.cascadeCounts, { city: activeCity });
+  const es = lang === "es";
+  const assessment = es ? localizeAssessment(rawAssessment, lang) : rawAssessment;
+  const comparison = es ? localizeComparison(rawComparison, lang) : rawComparison;
+  const evaluation = es ? localizeEvaluation(rawEvaluation, lang) : rawEvaluation;
+  const cartSummary = es ? localizeCartSummary(rawCart, lang) : rawCart;
   const workbench = {
-    diff: compareProfiles(state.municipalProfileA, state.municipalProfileB, state.municipalBasket),
-    cascade: runCascadeLab(state.cascadeCounts, { city: activeCity }),
+    diff: es ? localizeDiff(rawDiff, lang) : rawDiff,
+    cascade: es ? localizeCascadeLab(rawCascade, lang) : rawCascade,
     preset: state.workbenchPreset
   };
   const shown = evaluation || comparison.Riverside;
   const liveSummary =
     state.cityMode === "compare"
-      ? `${comparison.itemTitle}: ${comparison.sameStream ? "both cities use the same stream" : "the two cities differ"}. Riverside: ${comparison.Riverside.badgeLabel}. Houston: ${comparison.houston.badgeLabel}.`
-      : `${shown.itemTitle} in ${shown.shortCityName}: ${shown.badgeLabel}. Risk ${shown.contaminationRiskScore} of 100, ${shown.contaminationTier}. Confidence ${assessment.confidence.toLowerCase()}.`;
+      ? t(lang, "live.compare", {
+          item: comparison.itemTitle,
+          rel: t(lang, comparison.sameStream ? "live.compare.same" : "live.compare.diff"),
+          sl: comparison.Riverside.badgeLabel,
+          hou: comparison.houston.badgeLabel
+        })
+      : t(lang, "live.single", {
+          item: shown.itemTitle,
+          city: shown.shortCityName,
+          badge: shown.badgeLabel,
+          risk: shown.contaminationRiskScore,
+          tier: es ? tierLabelEs(shown.contaminationTier) : shown.contaminationTier,
+          confidence: es ? confidenceLabelEs(assessment.confidence).toLowerCase() : assessment.confidence.toLowerCase()
+        });
 
   return {
     query,
     activeCity,
+    language: lang,
     assessment,
     comparison,
     evaluation,
-    barcodeStatus: buildBarcodeStatus(statusSource),
+    barcodeStatus: buildBarcodeStatus(statusSource, lang),
     barcodeCheck: statusSource && String(statusSource).trim() !== "" ? validateBarcodeCheckDigit(statusSource) : null,
     cartSummary,
     workbench,
