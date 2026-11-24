@@ -556,7 +556,8 @@ export const MATERIAL_CATEGORIES = {
       stream: "SPLIT_DISPOSAL",
       badgeLabel: "Empty Liquid First, Then Recycle Bottle",
       prepSteps: [
-        "Unscrew the cap and pour all leftover liquid down the drain or onto soil.",
+        "Unscrew the cap and pour leftover water, juice, soda, or another food or drink liquid down the drain or onto soil.",
+        "Never pour chemicals, motor oil, pesticides, or other non-food liquids down the drain or onto soil; follow Riverside household hazardous waste guidance instead.",
         "Once completely empty, replace the cap and place the empty bottle loose in the Riverside recycling cart.",
         "If you cannot empty the liquid (e.g., spoiled oil or dressing), place the sealed bottle in the trash cart."
       ],
@@ -566,7 +567,8 @@ export const MATERIAL_CATEGORIES = {
       stream: "SPLIT_DISPOSAL",
       badgeLabel: "Drain All Liquid Before Green Cart",
       prepSteps: [
-        "Empty all liquid before placing any bottle in the Houston green Automated Recycling Cart.",
+        "Empty leftover food or drink liquid before placing any bottle in the Houston green Automated Recycling Cart.",
+        "Never pour chemicals, motor oil, pesticides, or other non-food liquids down the drain or onto soil; follow Houston household hazardous waste guidance instead.",
         "Optical NIR sorters at the Houston FCC Environmental MRF cannot air-eject heavy liquid-filled containers.",
         "Place the emptied bottle in the green cart."
       ],
@@ -1009,9 +1011,17 @@ export function resolveMaterialProfile(query = {}) {
     }
   }
 
-  if (query.condition === "liquid-full" && (materialId === "resin-1-pet" || materialId === "resin-2-hdpe")) {
-    liquidSourceResinCode = MATERIAL_CATEGORIES[materialId].resinCode;
-    materialId = "liquid-full-bottle";
+  if (query.condition === "liquid-full") {
+    let sourceResinCode = null;
+    if (materialId === "resin-1-pet" || materialId === "resin-2-hdpe") {
+      sourceResinCode = MATERIAL_CATEGORIES[materialId].resinCode;
+    } else if (materialId === "liquid-full-bottle" && (Number(query.resinCode) === 1 || Number(query.resinCode) === 2)) {
+      sourceResinCode = Number(query.resinCode);
+    }
+    if (sourceResinCode !== null) {
+      liquidSourceResinCode = sourceResinCode;
+      materialId = "liquid-full-bottle";
+    }
   } else if (query.condition === "broken" && materialId === "glass-jar-bottle") {
     materialId = "broken-glass-ceramic";
   }
@@ -1024,7 +1034,7 @@ export function resolveMaterialProfile(query = {}) {
     ? MATERIAL_CATEGORIES[materialId]
     : MATERIAL_CATEGORIES["resin-1-pet"];
   const category = liquidSourceResinCode !== null
-    ? { ...baseCategory, resinCode: liquidSourceResinCode, sourceMaterialId: materialId === "liquid-full-bottle" ? `resin-${liquidSourceResinCode}-${liquidSourceResinCode === 1 ? "pet" : "hdpe"}` : materialId }
+    ? { ...baseCategory, resinCode: liquidSourceResinCode }
     : baseCategory;
   return {
     category,

@@ -43,12 +43,20 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+const scopePath = new URL(self.registration.scope).pathname;
+const scopeRoot = scopePath.endsWith("/") ? scopePath : `${scopePath}/`;
+const isShellNavigation = (url) => url.pathname === scopeRoot || url.pathname === `${scopeRoot}index.html`;
+
 async function networkFirstPage(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const fresh = await fetch(request);
     const type = fresh && fresh.headers ? fresh.headers.get("content-type") || "" : "";
-    if (fresh && fresh.ok && type.includes("text/html")) {
+    if (fresh && fresh.status >= 500) {
+      const cached = await cache.match("./index.html");
+      if (cached) return cached;
+    }
+    if (fresh && fresh.ok && type.includes("text/html") && isShellNavigation(new URL(request.url))) {
       cache.put("./index.html", fresh.clone()).catch(() => {});
     }
     return fresh;
@@ -63,6 +71,10 @@ async function networkFirstAsset(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const fresh = await fetch(request);
+    if (fresh && fresh.status >= 500) {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+    }
     if (fresh && fresh.ok && new URL(request.url).origin === self.location.origin) {
       cache.put(request, fresh.clone()).catch(() => {});
     }

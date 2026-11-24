@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/bincheck-engine.js",
   "scripts": {
-    "test": "node --test tests/*.test.js",
+    "test": "node scripts/run-tests.mjs",
     "verify:sources": "node scripts/verify-city-sources.js --offline",
     "verify:live": "node scripts/verify-city-sources.js --live",
     "benchmark": "node scripts/run-benchmark.js",

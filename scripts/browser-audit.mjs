@@ -14,6 +14,11 @@ import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+if (typeof WebSocket === "undefined") {
+  console.error("browser-audit requires Node.js 22 or newer because it uses the built-in WebSocket client.");
+  process.exit(2);
+}
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CHROME_CANDIDATES = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -403,7 +408,10 @@ async function main() {
           fs.rmSync(dir, { recursive: true, force: true });
           break;
         } catch (error) {
-          if (attempt === 7) throw error;
+          if (attempt === 7) {
+            console.warn(`browser-audit: temporary path remains after cleanup retries: ${dir}`);
+            break;
+          }
           await new Promise((resolve) => setTimeout(resolve, 150));
         }
       }

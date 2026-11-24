@@ -74,15 +74,18 @@ const DEMO_SCENARIOS = {
 export { DEMO_SCENARIOS };
 
 function registerOfflineCache(win) {
-  const nav = win && win.navigator;
-  if (!nav || !nav.serviceWorker || !win.location || !/^https?:$/.test(win.location.protocol)) {
+  try {
+    if (!win || !win.location || !/^https?:$/.test(win.location.protocol)) return false;
+    const nav = win.navigator;
+    if (!nav || !nav.serviceWorker) return false;
+    nav.serviceWorker.register("./sw.js").catch(() => {
+      // Offline caching is an enhancement. A denied or unsupported registration
+      // never blocks the fully local rules engine already running in the page.
+    });
+    return true;
+  } catch {
     return false;
   }
-  nav.serviceWorker.register("./sw.js").catch(() => {
-    // Offline caching is an enhancement. A denied or unsupported registration
-    // never blocks the fully local rules engine already running in the page.
-  });
-  return true;
 }
 
 
@@ -983,9 +986,9 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     if (heroImg.complete) heroFrame.classList.toggle("img-fallback-active", heroImg.naturalWidth === 0);
   }
 
-  registerOfflineCache(win);
   renderSearch();
   render();
+  registerOfflineCache(win);
 
   return {
     getState: () => state,
