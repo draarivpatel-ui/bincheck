@@ -619,13 +619,13 @@ export const UI_STRINGS = Object.freeze({
     "html.lang": "es",
     "skip.link": "Saltar al contenido principal",
     "nav.sections": "Secciones de la página",
-    "nav.inspect": "Inspeccione un artículo",
+    "nav.inspect": "Inspeccionar",
     "nav.batch": "CSV por lotes",
     "nav.diff": "Comparación municipal",
-    "nav.cascade": "Laboratorio de cascada",
+    "nav.cascade": "Cascada de fallas",
     "nav.audit": "Auditoría firmada",
     "nav.selftest": "Autopruebas",
-    "nav.benchmark": "Prueba de calibración",
+    "nav.benchmark": "Calibración",
     "nav.guide": "Guía de cocina",
     "nav.shortcuts": "Atajos",
     "nav.keyShortcuts": "Atajos de teclado",
@@ -1124,7 +1124,7 @@ export const UI_STRINGS = Object.freeze({
     "eval.dropoffGuidance": "Guía local de depósito y ordenanza:",
     "eval.facility": "Instalación principal:",
     "eval.filmReturn": "Devolución de película plástica:",
-    "eval.vs": "Riverside vs. Houston:",
+    "eval.vs": "Riverside frente a Houston:",
     "eval.risk": "Riesgo de contaminación:",
     "eval.facilityShort": "Instalación:",
     "eval.flipAria": "Las dos ciudades dan veredictos distintos para este artículo",
@@ -2001,58 +2001,56 @@ export const ARCHETYPE_NOTES_ES = Object.freeze({
 
 export const CASCADE_ES = Object.freeze({
   "film-tangler": Object.freeze({
-    title: "Enredador de película en las cribas de estrellas",
-    headline: "La película y las bolsas #4 se enrollan en los ejes de las cribas de estrellas y detienen la línea para corte manual.",
-    alternative: "Devuelva la película limpia a los contenedores de tienda; nunca la ponga en el carrito.",
+    title: "Película y bolsas #4 que se enredan",
+    headline: "Las bolsas flexibles se enrollan en los ejes giratorios de las cribas de estrellas.",
+    alternative: "Devuelva la película limpia y seca a los contenedores de depósito a la entrada de las tiendas (H-E-B, Kroger, Target, Walmart). La película sucia va al carrito de basura, nunca suelta en el reciclaje.",
     stages: Object.freeze([
-      Object.freeze({ name: "Recolección en la acera", detail: "La película suelta se escapa por la tapa del carrito y se pega a la tolva del camión." }),
-      Object.freeze({ name: "Criba de estrellas del MRF", detail: "Las películas flexibles se enrollan en los ejes giratorios y bloquean los espacios entre discos que separan el material 2D del 3D." }),
-      Object.freeze({ name: "Parada de línea", detail: "Los operadores paran la línea y cortan la película enredada a mano; los modelos del sector registran hasta 30-60 minutos por turno." }),
-      Object.freeze({ name: "Contaminación de pacas", detail: "Los retazos de película se infestan en las pacas de papel y disparan reclamos de calidad de la fábrica." })
+      Object.freeze({ name: "La película llega a la preclasificación", detail: "La película suelta viaja en la banda de alimentación y pasa las estaciones de preclasificación manual." }),
+      Object.freeze({ name: "Empieza a enrollarse en los ejes", detail: "La película se enrolla en los rotores de la criba de estrellas para cartón y arrastra envases 3D hacia el flujo de papel." }),
+      Object.freeze({ name: "El atasco de ejes obliga a parar la línea", detail: "El torque en los ejes de la criba dispara el motor; toda la línea de flujo único se detiene." }),
+      Object.freeze({ name: "Corte manual y selecciones perdidas", detail: "Las cuadrillas cortan la película de los ejes entre discos en movimiento mientras los envases limpios pasan de largo los chorros NIR detenidos." })
     ])
   }),
-  "lithium-battery": Object.freeze({
-    title: "Evento térmico de batería de litio",
-    headline: "Una batería de iones de litio perforada puede iniciar un incendio por fuga térmica en el camión o en el piso del MRF.",
-    alternative: "Llévela a un punto de depósito HHW o a un quiosco de baterías; nunca la ponga en ningún carrito.",
+  "lithium-ignition": Object.freeze({
+    title: "Ignición de iones de litio en la compactación",
+    headline: "Una celda aplastada puede iniciar un incendio en el camión o en la planta.",
+    alternative: "Cubra los terminales con cinta y use el depósito de residuos peligrosos domésticos: Centro de Reciclaje del Condado de county (Riverside), Westpark o North ESC BOPA (Houston), o los quioscos Call2Recycle en tiendas. Nunca en ningún carrito.",
     stages: Object.freeze([
-      Object.freeze({ name: "Compactación en el camión", detail: "Las cuchillas de compactación perforan la celda y la cortocircuitan." }),
-      Object.freeze({ name: "Fuga térmica", detail: "La celda cortocircuitada se calienta en cascada; los vapores de electrolito inflamable se encienden cerca del papel y el plástico." }),
-      Object.freeze({ name: "Respuesta de emergencia", detail: "La cuadrilla descarga la carga en la calle o pide ayuda a bomberos; los incendios en el MRF destruyen bandas y sensores." }),
-      Object.freeze({ name: "Pérdida de material", detail: "Una sola batería puede quemar el valor de un camión completo de material reciclable." })
+      Object.freeze({ name: "La celda entra a la zona de compactación", detail: "La batería avanza por la línea hacia la compresión de la empacadora; el daño a la carcasa pone en marcha el riesgo." }),
+      Object.freeze({ name: "Perforación y cortocircuito", detail: "Las cuchillas de la compactadora o del camión perforan la celda; el cortocircuito interno empieza a calentar el electrolito." }),
+      Object.freeze({ name: "Fuga térmica", detail: "La temperatura de la celda se dispara; el humo y las llamas alcanzan el papel y la película en la misma banda." }),
+      Object.freeze({ name: "Rechazo de la carga y evacuación", detail: "La carga se descarga para la respuesta a incendios; la planta pierde el turno y la fibra cercana se da por perdida." })
     ])
   }),
-  "liquid-bottle": Object.freeze({
-    title: "Carga de líquido en envases",
-    headline: "Las botellas medio llenas pesan demasiado para los eyectores de aire ópticos y empapan las pacas de fibra.",
-    alternative: "Vacíe los líquidos de comida o bebida antes de reciclar; jamás vierta químicos en el drenaje o en la tierra.",
+  "liquid-bale": Object.freeze({
+    title: "Botella con líquido en el flujo de papel",
+    headline: "Las botellas pesadas esquivan los chorros de aire y empapan la fibra.",
+    alternative: "Vierta el líquido sobrante por el drenaje, vuelva a tapar y la botella #1 o #2 vacía va directo al carrito. Si no se puede vaciar, va a la basura.",
     stages: Object.freeze([
-      Object.freeze({ name: "Carga en el carrito", detail: "El líquido aumenta la masa del artículo y se vierte al compactarse." }),
-      Object.freeze({ name: "Falla del clasificador óptico", detail: "Los eyectores de aire calibrados para envases vacíos no pueden empujar una botella pesada llena de líquido fuera de la banda." }),
-      Object.freeze({ name: "Contaminación de fibra", detail: "El líquido derramado empapa el cartón y el papel, bajando el grado y el precio de la paca." }),
-      Object.freeze({ name: "Peligro de resbalón", detail: "El líquido azucarado en el piso de clasificación crea superficies resbalosas para los operadores." })
+      Object.freeze({ name: "La botella no recibe el chorro de aire", detail: "Una botella medio llena pesa demasiado para el soplo del eyector óptico y cae fuera de su contenedor destino." }),
+      Object.freeze({ name: "El líquido llega al contenedor de papel", detail: "La botella cae en la pila de fibra o revienta bajo la empacadora y moja el cartón limpio." }),
+      Object.freeze({ name: "Baja el grado de humedad de la paca", detail: "La fibra saturada no cumple la especificación de humedad de la papelera; la paca se degrada en el boleto de báscula." }),
+      Object.freeze({ name: "Paca rechazada en la papelera", detail: "La paca de papel saliente se rechaza y se reprocesa o se manda al relleno sanitario a costa de la planta." })
     ])
   }),
-  "greasy-fiber": Object.freeze({
-    title: "Fibra saturada de grasa",
-    headline: "El cartón saturado de grasa no se repulpa limpiamente; el aceite forma agujeros y puntos débiles en la hoja reciclada.",
-    alternative: "Corte la tapa limpia para el carrito y tire la parte grasosa.",
+  "grease-fiber": Object.freeze({
+    title: "Grasa que degrada la paca de fibra",
+    headline: "El aceite de pizza no se puede lavar de la pulpa de papel.",
+    alternative: "Arranque la tapa limpia y recíclela. En ambas ciudades la base empapada de grasa va a la basura (o a un carrito de orgánicos donde exista), nunca entera al reciclaje.",
     stages: Object.freeze([
-      Object.freeze({ name: "Lectura errónea del residente", detail: "La caja completa entra al carrito porque 'el cartón se recicla'." }),
-      Object.freeze({ name: "Falla en el repulpado", detail: "El aceite hidrofóbico no se mezcla con la pulpa en agua y forma agujeros y puntos débiles en la hoja nueva." }),
-      Object.freeze({ name: "Rechazo de paca", detail: "Las fábricas rechazan pacas de fibra con manchas de grasa visibles; la carga completa pasa a basura." }),
-      Object.freeze({ name: "Propagación de olor", detail: "La comida en descomposición atrae plagas a la instalación de almacenamiento." })
+      Object.freeze({ name: "El aceite pasa a la fibra limpia", detail: "La grasa y el queso tocan el papel limpio en la banda y dentro de la empacadora." }),
+      Object.freeze({ name: "El repulpado de fibra no cumple la especificación", detail: "El aceite hidrofóbico sobrevive a la tina de pulpa y deja puntos débiles y agujeros en la hoja reciclada." }),
+      Object.freeze({ name: "La paca se degrada al relleno sanitario", detail: "La paca de fibra no alcanza su grado y va al relleno sanitario, y con ella se pierde toda la carga de cartón limpio." })
     ])
   }),
   "sharps-hazmat": Object.freeze({
-    title: "Objetos punzantes y residuos peligrosos",
-    headline: "Las agujas, cuchillas y químicos en el carrito lesionan a los clasificadores de línea y contaminan la instalación.",
-    alternative: "Use el programa municipal de residuos peligrosos domésticos; nunca los carritos.",
+    title: "Objetos punzantes y materiales peligrosos en el carrito",
+    headline: "Los fragmentos y los envases de químicos llegan a los clasificadores humanos.",
+    alternative: "Envuelva los fragmentos en cartón, séllelos con cinta y póngalos en el carrito de basura. La pintura, los químicos y los contenedores de objetos punzantes van al depósito de residuos peligrosos domésticos (Condado de county o ESC de Houston), nunca a la acera.",
     stages: Object.freeze([
-      Object.freeze({ name: "Exposición en la acera", detail: "Las agujas sueltas perforan los guantes cuando la cuadrilla compacta el carrito." }),
-      Object.freeze({ name: "Lesiones en la banda", detail: "Los clasificadores manuales agarran bolsas que esconden cuchillas o vidrio." }),
-      Object.freeze({ name: "Contaminación química", detail: "Los químicos derramados dañan las bandas y exponen a la cuadrilla a vapores." }),
-      Object.freeze({ name: "Costo de cierre", detail: "Los eventos de materiales peligrosos fuerzan paradas de línea y limpieza profesional." })
+      Object.freeze({ name: "Los fragmentos se incrustan en el flujo de fibra", detail: "El vidrio roto y la cerámica entran a la línea de papel, desgastan las bandas y contaminan la fibra que debe ir libre de vidrio." }),
+      Object.freeze({ name: "Exposición de los clasificadores y menor velocidad", detail: "Las cuadrillas de preclasificación bajan la velocidad de la banda y trabajan alrededor de los objetos punzantes; los guantes y las pinzas reciben los golpes." }),
+      Object.freeze({ name: "Lesión y parada de línea", detail: "Una perforación o una salpicadura química obliga a una parada de seguridad y a una revisión del incidente; la línea queda inactiva." })
     ])
   })
 });
@@ -2395,14 +2393,13 @@ export function localizeDiff(diff, lang) {
   const rows = (diff.rows || []).map((row) => ({
     ...row,
     label: basketLabelEs(diff.basketId, row.materialId, row.index ?? 0, row.label),
-    a: localizeDiffCell(row.a, diff, "a"),
-    b: localizeDiffCell(row.b, diff, "b")
+    a: localizeDiffCell(row.a, diff, "a", row.materialId),
+    b: localizeDiffCell(row.b, diff, "b", row.materialId)
   }));
-  const conflicts = (diff.conflicts || []).map((c) => ({
-    ...c,
-    itemLabel: basketLabelEs(diff.basketId, c.materialId, c.index ?? 0, c.itemLabel),
-    message: conflictMessageEs(c)
-  }));
+  const conflicts = (diff.conflicts || []).map((c) => {
+    const itemLabel = basketLabelEs(diff.basketId, c.materialId, c.index ?? 0, c.itemLabel);
+    return { ...c, itemLabel, message: conflictMessageEs({ ...c, itemLabel }) };
+  });
   return {
     ...diff,
     a: nameFor(diff.a),
@@ -2413,18 +2410,20 @@ export function localizeDiff(diff, lang) {
   };
 }
 
-function localizeDiffCell(cell, diff, side) {
+function localizeDiffCell(cell, diff, side, rowMaterialId) {
   if (!cell) return cell;
   const profileId = diff && diff[side] ? diff[side].profileId : null;
-  const es = MATERIALS_ES[cell.materialId] || null;
-  const block = localizedCityBlock(cell.materialId, profileId);
+  // Diff cells carry no materialId of their own; the row owns it.
+  const materialId = cell.materialId || rowMaterialId;
+  const es = MATERIALS_ES[materialId] || null;
+  const block = localizedCityBlock(materialId, profileId);
   const out = { ...cell };
   if (block) {
     out.badgeLabel = block.badgeLabel;
     out.note = block.dropOffNote;
-  } else if (profileId && ARCHETYPE_NOTES_ES[profileId] && ARCHETYPE_NOTES_ES[profileId][cell.materialId]) {
+  } else if (profileId && ARCHETYPE_NOTES_ES[profileId] && ARCHETYPE_NOTES_ES[profileId][materialId]) {
     out.badgeLabel = `${workbenchStreamLabelEs(cell.stream)} (${profileNameEs(profileId, "shortName")})`;
-    out.note = ARCHETYPE_NOTES_ES[profileId][cell.materialId];
+    out.note = ARCHETYPE_NOTES_ES[profileId][materialId];
   } else if (es) {
     out.badgeLabel = workbenchStreamLabelEs(cell.stream);
   }
@@ -2491,4 +2490,61 @@ export function localizeCascadeLab(lab, lang) {
 export function presetLabelEs(presetId, fallback) {
   const entry = PRESETS_ES[presetId];
   return entry ? entry.label : fallback;
+}
+
+/* ---------------- in-page self-test descriptions ---------------- */
+
+const tail16 = (detail) => {
+  const m = /: ([0-9a-f]{16})\.\.\.$/.exec(detail || "");
+  return m ? m[1] : null;
+};
+
+/**
+ * Spanish mirrors of passing self-test descriptions, keyed by test id. Computed parts (digest
+ * prefixes, counts) are carried over from the English detail; if a detail does not match the
+ * expected shape, the English text is kept so a diagnostic is never paraphrased.
+ */
+export const SELFTEST_DETAILS_ES = Object.freeze({
+  "sha256.kat.empty": (d) => (tail16(d) ? `FIPS 180-4, mensaje vacío: ${tail16(d)}...` : null),
+  "sha256.kat.abc": (d) => (tail16(d) ? `FIPS 180-4, "abc": ${tail16(d)}...` : null),
+  "sha256.kat.two-block": (d) => (tail16(d) ? `FIPS 180-4, vector de dos bloques: ${tail16(d)}...` : null),
+  "sha256.kat.padding-edge": (d) => (tail16(d) ? `FIPS 180-4, vector de 896 bits en el borde del relleno: ${tail16(d)}...` : null),
+  "sha256.utf8.multibyte": () => "El codificador UTF-8 procesa entradas multibyte de forma determinista",
+  "sha256.hex.roundtrip": () => "El códec hexadecimal hace el viaje de ida y vuelta y rechaza lo que no es hexadecimal",
+  "hmac.kat.rfc4231-1": (d) => (tail16(d) ? `RFC 4231, caso de prueba 1: ${tail16(d)}...` : null),
+  "hmac.kat.key-over-block": () => "Las claves más largas que el bloque de 64 bytes se procesan primero con hash",
+  "audit.build.shape": (d) => {
+    const m = /^(\d+)-item basket audited under (\d+) profiles$/.exec(d || "");
+    return m ? `Canasta de ${m[1]} artículos auditada bajo ${m[2]} perfiles` : null;
+  },
+  "audit.json.byte-identical": () => "Las mismas entradas producen exportaciones firmadas idénticas byte a byte",
+  "audit.verify.roundtrip": () => "Una exportación recién firmada se verifica intacta",
+  "audit.tamper.payload-byte": () => "Un campo editado cambia el resumen y falla la verificación",
+  "audit.tamper.digest-string": () => "Se detecta un resumen editado",
+  "audit.verify.rejects-garbage": () => "Las entradas vacías, no JSON o con esquema incorrecto fallan de forma segura",
+  "audit.csv.no-formula": () => "Cada celda del CSV exportado está protegida contra inyección de fórmulas",
+  "audit.csv.crlf": () => "El CSV usa finales de línea CRLF en todo el archivo",
+  "municipal.profiles.all-verdicts": (d) => {
+    const m = /^(\d+) profile verdicts produced across (\d+) profiles$/.exec(d || "");
+    return m ? `${m[1]} veredictos de perfil producidos en ${m[2]} perfiles` : null;
+  },
+  "municipal.diff.deterministic": () => "El mismo par y la misma canasta siempre dan la misma comparación",
+  "municipal.glass-out.conflict": () => "El vidrio aceptado en el carrito de Riverside se marca como conflicto de depósito bajo Doble Flujo sin Vidrio",
+  "municipal.diversion.bounded": () => "Las tasas de desvío quedan en [0, 100] y la masa se conserva en cada par de canasta y perfil",
+  "municipal.archetypes.complete": () => "Cada tabla de arquetipo cubre todas las categorías de materiales",
+  "safety.battery.never-curbside": () => "Las baterías y los electrónicos nunca llegan a un flujo de acera bajo ningún perfil o condición",
+  "safety.battery.engine-dropoff": () => "El motor real manda todas las baterías y electrónicos al depósito en ambas ciudades",
+  "cascade.monotone.severity": () => "La severidad nunca baja y el rendimiento de paca queda dentro de sus límites en cada escenario",
+  "cascade.monotone.yield": () => "El rendimiento de paca nunca sube en ningún escenario",
+  "cascade.lab.deterministic": () => "Entradas idénticas del laboratorio dan resultados idénticos byte a byte",
+  "hash.workbench.roundtrip": () => "Las claves pa/pb/bk/cas del banco de trabajo hacen el viaje de ida y vuelta por el hash compartido",
+  "hash.preset.hydrates": () => "#bin=diff-glass-out se decodifica en la preconfiguración correcta"
+});
+
+/** Spanish description for a passing self-test; failures keep their English diagnostic. */
+export function selfTestDetailEs(entry) {
+  if (!entry || entry.pass !== true) return entry ? entry.detail : "";
+  const fn = SELFTEST_DETAILS_ES[entry.id];
+  const es = fn ? fn(entry.detail) : null;
+  return es || entry.detail;
 }

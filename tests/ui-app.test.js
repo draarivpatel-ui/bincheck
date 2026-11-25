@@ -676,3 +676,26 @@ test("css: new components have styles, reduced motion and print rules exist", ()
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /@media print/);
 });
+
+test("ui: Spanish batch table is localized while the downloads stay byte-identical English", () => {
+  const en = boot();
+  en.dom.click(button(en.dom, "data-action", "load-sample"));
+  en.dom.click(button(en.dom, "data-action", "run-batch"));
+  en.dom.click(button(en.dom, "data-action", "export-csv"));
+  en.dom.click(button(en.dom, "data-action", "export-json"));
+  assert.match(en.el("csv-results").innerHTML, /Recycle in Curbside Cart/);
+  en.app.destroy();
+
+  const es = boot();
+  es.dom.click(es.dom.all.find((el) => el.getAttribute("data-action") === "set-language" && el.getAttribute("data-lang") === "es"));
+  es.dom.click(button(es.dom, "data-action", "load-sample"));
+  es.dom.click(button(es.dom, "data-action", "run-batch"));
+  const table = es.el("csv-results").innerHTML;
+  assert.ok(!table.includes("Recycle in Curbside Cart"), "ES table shows Spanish stream badges");
+  assert.match(table, /Recicle en el carrito de la acera/);
+  es.dom.click(button(es.dom, "data-action", "export-csv"));
+  es.dom.click(button(es.dom, "data-action", "export-json"));
+  assert.equal(es.downloads[0].text, en.downloads[0].text);
+  assert.equal(es.downloads[1].text, en.downloads[1].text);
+  es.app.destroy();
+});

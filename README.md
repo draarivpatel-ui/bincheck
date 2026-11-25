@@ -99,7 +99,7 @@ bincheck/
 |   |-- run-benchmark.js          Benchmark CLI
 |   |-- verify-city-sources.js    Offline and live source verifier
 |   `-- browser-audit.mjs         Zero-dependency headless Chromium audit over CDP
-`-- tests/                        565 tests in seventeen files, plus a stand-in DOM
+`-- tests/                        573 tests in seventeen files, plus a stand-in DOM
 ```
 
 ## Running the tests
@@ -107,16 +107,16 @@ bincheck/
 Requires Node.js 18 or newer. There is nothing to install.
 
 ```bash
-npm test                    # node --test tests/*.test.js  (565 tests)
+npm test                    # node --test tests/*.test.js  (573 tests)
 npm run benchmark           # text report with latency
 node scripts/run-benchmark.js --json   # deterministic JSON report
 npm run verify:sources      # check the rules snapshot offline
-npm run audit               # headless Chromium audit at 1440x900 and 390x844 (needs Chrome or Chromium)
+npm run audit               # headless Chromium audit at 1440x900, 820x1180 and 390x844 (needs Chrome or Chromium)
 ```
 
-The suite covers the engine and GS1 math (45), the reducer, view model, share links, evidence ladder and renderers (46), share-link decoding and parser hardening (65), the CSV parser, batch exports, ground-truth anchors, benchmark and CLI (36), the UI controller driven through a stand-in document built from the real `index.html` (36), static page checks (20), repository hygiene with encoded and binary probes (5), the verdicts, instant search and contamination calculator (12), the single-item report exports (29), and the municipal rule citations, snapshot parity, guided demos, diversion math and extra-cell CSV rows (23). The workbench adds the SHA-256 and HMAC known-answer vectors, canonical signing, CSV formula guards and tamper detection (54), the six-profile diff engine with conservation and bound invariants (39), the hazard cascade sweep (31), the shared self-test registry running one Node test per in-page check (35), and the workbench reducer, hydration, share-hash keys, renderers and page controls (44). Offline caching and resin classification (10) plus the English/Spanish dictionaries, language switching, Spanish search aliases, localization fallbacks and share-hash language round trips (35) close out the suite. It includes a tampered-snapshot test, a planted wrong-answer test, and an HTML injection test for CSV labels. Regressions also cover resin-only links, contradictory resin stamps, prototype property names, headerless barcode and material/resin rows with identifier-like labels, quoted newline accounting, scanner format requests, cancelled camera acquisitions and deterministic scanner cleanup. The image guards check both hero formats and reject application segments or ancillary chunks.
+The suite covers the engine and GS1 math (45), the reducer, view model, share links, evidence ladder and renderers (46), share-link decoding and parser hardening (65), the CSV parser, batch exports, ground-truth anchors, benchmark and CLI (36), the UI controller driven through a stand-in document built from the real `index.html` (37), static page checks (20), repository hygiene with encoded and binary probes (5), the verdicts, instant search and contamination calculator (12), the single-item report exports (29), and the municipal rule citations, snapshot parity, guided demos, diversion math and extra-cell CSV rows (23). The workbench adds the SHA-256 and HMAC known-answer vectors, canonical signing, CSV formula guards and tamper detection (54), the six-profile diff engine with conservation and bound invariants (39), the hazard cascade sweep (31), the shared self-test registry running one Node test per in-page check (35), and the workbench reducer, hydration, share-hash keys, renderers and page controls (44). Offline caching and resin classification (10) plus the English/Spanish dictionaries, language switching, Spanish search aliases, localization fallbacks, share-hash language round trips and EN/ES parity guards for cascade stages, presets, diff notes, batch tables, self-test descriptions and stacked-table column labels (42) close out the suite. It includes a tampered-snapshot test, a planted wrong-answer test, and an HTML injection test for CSV labels. Regressions also cover resin-only links, contradictory resin stamps, prototype property names, headerless barcode and material/resin rows with identifier-like labels, quoted newline accounting, scanner format requests, cancelled camera acquisitions and deterministic scanner cleanup. The image guards check both hero formats and reject application segments or ancillary chunks.
 
-`npm run audit` serves the repository locally, launches headless Chrome or Chromium, and drives the real page over the DevTools Protocol at 1440x900 and 390x844: 96 checks across both viewports covering console errors, uncaught exceptions, external requests, horizontal overflow, profile diffs, cascade sliders, presets, hash hydration, the self-test panel, all three signed export formats with the tamper check, and the bilingual toggle: real pointer clicks switching English to Spanish and back, a Spanish item search, `document.documentElement.lang`, the `l=es` share-hash key, and localStorage persistence across a reload.
+`npm run audit` serves the repository locally, launches headless Chrome or Chromium, and drives the real page over the DevTools Protocol at 1440x900, 820x1180 and 390x844: 144 checks across the three viewports covering console errors, uncaught exceptions, external requests, horizontal overflow, profile diffs, cascade sliders, presets, hash hydration, the self-test panel, all three signed export formats with the tamper check, and the bilingual toggle: real pointer clicks switching English to Spanish and back, a Spanish item search, `document.documentElement.lang`, the `l=es` share-hash key, and localStorage persistence across a reload.
 
 ## Municipal references
 

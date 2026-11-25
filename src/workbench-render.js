@@ -9,7 +9,7 @@ import { escapeHtml, renderVerdictIcon } from "./render.js";
 import { WORKBENCH_STREAM_LABELS, MRF_PROFILES, CONFLICT_KIND_LABELS_EXPORTED } from "../js/bincheck-municipal.js";
 import { CASCADE_SCENARIO_IDS } from "../js/bincheck-cascade.js";
 import { verdictFor } from "./insights.js";
-import { t, workbenchStreamLabelEs, conflictKindEs, auditDetailEs, normalizeLang } from "../js/bincheck-i18n.js";
+import { t, workbenchStreamLabelEs, conflictKindEs, auditDetailEs, normalizeLang, selfTestDetailEs } from "../js/bincheck-i18n.js";
 
 function streamTone(stream) {
   return verdictFor(stream).key;
@@ -24,16 +24,16 @@ function renderStreamTag(stream, lang = "en") {
   return `<span class="stream-tag verdict-${escapeHtml(key)}">${renderVerdictIcon(key, 12)}<span>${escapeHtml(streamLabel(stream, lang))}</span></span>`;
 }
 
-function metricRow(label, valueA, valueB, { suffix = "", invert = false } = {}) {
+function metricRow(label, valueA, valueB, { suffix = "", invert = false, labels = ["", "", ""] } = {}) {
   const delta = Number(valueA) - Number(valueB);
   const better = delta === 0 ? "neutral" : invert ? delta < 0 : delta > 0;
   const cls = better === "neutral" ? "delta-neutral" : better ? "delta-better" : "delta-worse";
   const sign = delta > 0 ? "+" : "";
   return `<tr>
     <th scope="row">${escapeHtml(label)}</th>
-    <td class="tabular">${escapeHtml(String(valueA))}${escapeHtml(suffix)}</td>
-    <td class="tabular">${escapeHtml(String(valueB))}${escapeHtml(suffix)}</td>
-    <td class="tabular ${cls}">${sign}${escapeHtml(String(Math.round(delta * 10) / 10))}${escapeHtml(suffix)}</td>
+    <td class="tabular" data-label="${escapeHtml(labels[0])}">${escapeHtml(String(valueA))}${escapeHtml(suffix)}</td>
+    <td class="tabular" data-label="${escapeHtml(labels[1])}">${escapeHtml(String(valueB))}${escapeHtml(suffix)}</td>
+    <td class="tabular ${cls}" data-label="${escapeHtml(labels[2])}">${sign}${escapeHtml(String(Math.round(delta * 10) / 10))}${escapeHtml(suffix)}</td>
   </tr>`;
 }
 
@@ -43,6 +43,7 @@ function metricRow(label, valueA, valueB, { suffix = "", invert = false } = {}) 
  */
 export function renderMunicipalDiff(diff, lang = "en") {
   const { a, b } = diff;
+  const cols = [a.shortName, b.shortName, t(lang, "diff.ab")];
   const kindTag = (profile) =>
     `<span class="data-badge ${profile.profileKind === "snapshot" ? "is-sourced" : "is-demo"}">${escapeHtml(t(lang, profile.profileKind === "snapshot" ? "diff.kindTag.snapshot" : "diff.kindTag.archetype"))}</span>`;
 
@@ -61,8 +62,8 @@ export function renderMunicipalDiff(diff, lang = "en") {
     .map(
       (row) => `<tr${row.changed ? ' class="diff-row-changed"' : ""}>
         <th scope="row">${escapeHtml(row.label)} <span class="tabular diff-weight">${escapeHtml(String(row.weightLbs))} lb</span></th>
-        <td data-label="${escapeHtml(a.shortName)}">${renderStreamTag(row.a.stream, lang)}${row.changed ? `<p class="diff-note">${escapeHtml(row.a.note || "")}</p>` : ""}</td>
-        <td data-label="${escapeHtml(b.shortName)}">${renderStreamTag(row.b.stream, lang)}${row.changed ? `<p class="diff-note">${escapeHtml(row.b.note || "")}</p>` : ""}</td>
+        <td data-label="${escapeHtml(a.shortName)}"><div class="batch-cell">${renderStreamTag(row.a.stream, lang)}${row.changed ? `<p class="diff-note">${escapeHtml(row.a.note || "")}</p>` : ""}</div></td>
+        <td data-label="${escapeHtml(b.shortName)}"><div class="batch-cell">${renderStreamTag(row.b.stream, lang)}${row.changed ? `<p class="diff-note">${escapeHtml(row.b.note || "")}</p>` : ""}</div></td>
       </tr>`
     )
     .join("");
@@ -88,14 +89,14 @@ export function renderMunicipalDiff(diff, lang = "en") {
         <caption class="sr-only">${escapeHtml(t(lang, "diff.metricsCaption", { a: a.profileName, b: b.profileName, basket: diff.basketName }))}</caption>
         <thead><tr><th scope="col">${escapeHtml(t(lang, "diff.metric", { basket: diff.basketName }))}</th><th scope="col">${escapeHtml(a.shortName)}</th><th scope="col">${escapeHtml(b.shortName)}</th><th scope="col">${escapeHtml(t(lang, "diff.ab"))}</th></tr></thead>
         <tbody>
-          ${metricRow(t(lang, "diff.metric.diversionRate"), a.diversionRatePct, b.diversionRatePct, { suffix: "%" })}
-          ${metricRow(t(lang, "diff.metric.curbsideOnly"), a.curbsideRatePct, b.curbsideRatePct, { suffix: "%" })}
-          ${metricRow(t(lang, "diff.metric.divertedMass"), a.divertedLbs, b.divertedLbs, { suffix: " lb" })}
-          ${metricRow(t(lang, "diff.metric.dropOffMass"), a.dropOffLbs, b.dropOffLbs, { suffix: " lb", invert: true })}
-          ${metricRow(t(lang, "diff.metric.landfillMass"), a.trashLbs, b.trashLbs, { suffix: " lb", invert: true })}
-          ${metricRow(t(lang, "diff.metric.cartContamination"), a.naiveCartContaminationPct, b.naiveCartContaminationPct, { suffix: "%", invert: true })}
-          ${metricRow(t(lang, "diff.metric.contaminationRisk"), a.contaminationRiskIndex, b.contaminationRiskIndex, { suffix: "/100", invert: true })}
-          ${metricRow(t(lang, "diff.metric.co2eAvoided"), a.co2eAvoidedKg, b.co2eAvoidedKg, { suffix: " kg" })}
+          ${metricRow(t(lang, "diff.metric.diversionRate"), a.diversionRatePct, b.diversionRatePct, { suffix: "%", labels: cols })}
+          ${metricRow(t(lang, "diff.metric.curbsideOnly"), a.curbsideRatePct, b.curbsideRatePct, { suffix: "%", labels: cols })}
+          ${metricRow(t(lang, "diff.metric.divertedMass"), a.divertedLbs, b.divertedLbs, { suffix: " lb", labels: cols })}
+          ${metricRow(t(lang, "diff.metric.dropOffMass"), a.dropOffLbs, b.dropOffLbs, { suffix: " lb", invert: true, labels: cols })}
+          ${metricRow(t(lang, "diff.metric.landfillMass"), a.trashLbs, b.trashLbs, { suffix: " lb", invert: true, labels: cols })}
+          ${metricRow(t(lang, "diff.metric.cartContamination"), a.naiveCartContaminationPct, b.naiveCartContaminationPct, { suffix: "%", invert: true, labels: cols })}
+          ${metricRow(t(lang, "diff.metric.contaminationRisk"), a.contaminationRiskIndex, b.contaminationRiskIndex, { suffix: "/100", invert: true, labels: cols })}
+          ${metricRow(t(lang, "diff.metric.co2eAvoided"), a.co2eAvoidedKg, b.co2eAvoidedKg, { suffix: " kg", labels: cols })}
         </tbody>
       </table>
     </div>
@@ -135,12 +136,10 @@ export function renderCascadeLab(lab, lang = "en") {
       const level = result.count === 0 ? "idle" : result.alertLevel === "FACILITY_EMERGENCY" ? "critical" : result.alertLevel === "LINE_STOP" ? "high" : "moderate";
       return `<section class="cascade-card cascade-${escapeHtml(level)}" aria-label="${escapeHtml(result.title)}">
         <div class="cascade-card-head">
-          <div>
-            <h4>${escapeHtml(result.title)} <span class="tabular cascade-count-tag">x${result.count}</span></h4>
-            <p class="cascade-headline">${escapeHtml(result.headline)}</p>
-          </div>
+          <h4>${escapeHtml(result.title)} <span class="tabular cascade-count-tag">x${result.count}</span></h4>
           <span class="cascade-severity tabular severity-${escapeHtml(level)}">${result.severity}/100</span>
         </div>
+        <p class="cascade-headline">${escapeHtml(result.headline)}</p>
         ${result.count > 0 ? `<ol class="cascade-stages">${stageItems}</ol>` : `<p class="empty-batch-msg">${escapeHtml(t(lang, "cascade.idleStage"))}</p>`}
         <div class="cascade-metrics tabular">
           <span>${escapeHtml(t(lang, "cascade.downtime"))} <strong>${escapeHtml(t(lang, "cascade.downtimeValue", { n: result.downtimeMin }))}</strong></span>
@@ -204,7 +203,7 @@ export function renderSelfTests(result, lang = "en") {
       (entry) => `<li class="selftest-row ${entry.pass ? "pass" : "fail"}">
         <span class="selftest-mark" aria-hidden="true">${entry.pass ? "&#10003;" : "&#10007;"}</span>
         <span class="selftest-id tabular">${escapeHtml(entry.id)}</span>
-        <span class="selftest-detail">${escapeHtml(entry.detail)}</span>
+        <span class="selftest-detail">${escapeHtml(normalizeLang(lang) === "es" ? selfTestDetailEs(entry) : entry.detail)}</span>
       </li>`
     )
     .join("");

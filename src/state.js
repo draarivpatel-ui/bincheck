@@ -386,7 +386,7 @@ export function reduce(state, action) {
         municipalProfileB: normalizeProfileId(patch.profileB) || state.municipalProfileB,
         municipalBasket: normalizeBasketId(patch.basketId) || state.municipalBasket,
         cascadeCounts: patch.cascadeCounts ? { ...patch.cascadeCounts } : state.cascadeCounts,
-        notice: t(lang, "notice.presetLoaded", { name: lang === "es" && PRESETS_ES[preset.id] ? PRESETS_ES[preset.id].name : preset.name })
+        notice: t(lang, "notice.presetLoaded", { name: lang === "es" && PRESETS_ES[preset.id] ? PRESETS_ES[preset.id].label : preset.name })
       };
     }
     case "SET_SELFTEST_RESULT": {

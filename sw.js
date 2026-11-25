@@ -1,5 +1,5 @@
 /* BinCheck offline shell. Network-first runtime assets with offline fallback. */
-const CACHE_NAME = "bincheck-offline-2026-11-24-v3";
+const CACHE_NAME = "bincheck-offline-2026-11-25-v4";
 const CORE_ASSETS = [
   "./",
   "./index.html",

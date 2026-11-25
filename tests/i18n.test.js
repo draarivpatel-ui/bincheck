@@ -34,7 +34,12 @@ import {
   localizeCascadeLab,
   profileNameEs,
   basketLabelEs,
-  presetLabelEs
+  presetLabelEs,
+  localizeBatchResult,
+  CASCADE_ES,
+  PRESETS_ES,
+  SELFTEST_DETAILS_ES,
+  selfTestDetailEs
 } from "../js/bincheck-i18n.js";
 import {
   VERIFIED_BARCODE_CATALOG,
@@ -45,9 +50,9 @@ import {
   compareJurisdictions,
   scoreCartBatch
 } from "../js/bincheck-engine.js";
-import { runBatchFromCsv } from "../js/bincheck-batch.js";
-import { compareProfiles, MRF_PROFILE_IDS } from "../js/bincheck-municipal.js";
-import { runCascadeLab } from "../js/bincheck-cascade.js";
+import { runBatchFromCsv, SAMPLE_BATCH_CSV, batchResultToCsv, batchResultToJson } from "../js/bincheck-batch.js";
+import { compareProfiles, MRF_PROFILE_IDS, WORKBENCH_PRESETS } from "../js/bincheck-municipal.js";
+import { runCascadeLab, CASCADE_SCENARIO_IDS, CASCADE_SCENARIOS } from "../js/bincheck-cascade.js";
 import { encodeShareHash, decodeShareHash, CITY_MODES } from "../js/bincheck-validate.js";
 import { verdictFor, searchItems, computeContaminationImpact } from "../src/insights.js";
 import { createInitialState, reduce, selectViewModel, SHORTCUTS } from "../src/state.js";
@@ -100,7 +105,6 @@ test("i18n: the only untranslated values are the known language-neutral set", ()
     "diff.unit.pctPt",
     "diff.unit.per100",
     "diff.weight",
-    "eval.vs",
     "evidence.material",
     "evidence.sev.error",
     "gauge.score",
@@ -549,4 +553,103 @@ test("i18n: markup exposes the lang toggle and every data-i18n key resolves in E
   const keys = [...html.matchAll(/data-i18n(?:-[a-z]+)?="([^"]+)"/g)].map((m) => m[1]);
   const missing = keys.filter((k) => t("es", k) === k || t("en", k) === k);
   assert.deepEqual([...new Set(missing)], []);
+});
+
+
+/* ---------------- ES parity guards (regressions found in the 2026-11-25 UI audit) ---------------- */
+
+test("i18n parity: every cascade scenario has a Spanish entry with the same stage count", () => {
+  for (const id of CASCADE_SCENARIO_IDS) {
+    const es = CASCADE_ES[id];
+    assert.ok(es, `CASCADE_ES is missing ${id}`);
+    assert.equal(es.stages.length, CASCADE_SCENARIOS[id].stages.length, `stage count for ${id}`);
+    for (const field of ["title", "headline", "alternative"]) {
+      assert.ok(es[field] && es[field] !== CASCADE_SCENARIOS[id][field], `${id}.${field} is translated`);
+    }
+  }
+  assert.deepEqual(Object.keys(CASCADE_ES).sort(), [...CASCADE_SCENARIO_IDS].sort());
+});
+
+test("i18n parity: a Spanish cascade lab run carries no English stage text", () => {
+  const counts = Object.fromEntries(CASCADE_SCENARIO_IDS.map((id) => [id, 10]));
+  const lab = runCascadeLab(counts);
+  const es = localizeCascadeLab(lab, "es");
+  es.results.forEach((r, i) => {
+    const en = lab.results[i];
+    assert.notEqual(r.title, en.title);
+    assert.notEqual(r.alternative, en.alternative);
+    r.stages.forEach((stage, k) => {
+      assert.notEqual(stage.name, en.stages[k].name, `${r.scenarioId} stage ${k} name`);
+      assert.notEqual(stage.detail, en.stages[k].detail, `${r.scenarioId} stage ${k} detail`);
+    });
+  });
+});
+
+test("i18n parity: every workbench preset has a Spanish label and the ES notice names it", () => {
+  for (const id of Object.keys(WORKBENCH_PRESETS)) {
+    assert.ok(PRESETS_ES[id] && PRESETS_ES[id].label, `PRESETS_ES is missing ${id}`);
+    const next = reduce({ ...createInitialState(), language: "es" }, { type: "APPLY_WORKBENCH_PRESET", presetId: id });
+    assert.ok(!/undefined/.test(next.notice), next.notice);
+    assert.ok(next.notice.includes(PRESETS_ES[id].label), next.notice);
+    const enNext = reduce(createInitialState(), { type: "APPLY_WORKBENCH_PRESET", presetId: id });
+    assert.ok(enNext.notice.includes(WORKBENCH_PRESETS[id].name), enNext.notice);
+  }
+});
+
+test("i18n parity: ES diff rows and conflict alerts are translated for every profile pair", () => {
+  for (const a of MRF_PROFILE_IDS) {
+    for (const b of MRF_PROFILE_IDS) {
+      if (a === b) continue;
+      const diff = compareProfiles(a, b, "tricky-household");
+      const es = localizeDiff(diff, "es");
+      diff.rows.forEach((row, i) => {
+        if (!row.changed) return;
+        assert.notEqual(es.rows[i].a.note, row.a.note, `${a} vs ${b} ${row.materialId} note A`);
+        assert.notEqual(es.rows[i].b.note, row.b.note, `${a} vs ${b} ${row.materialId} note B`);
+      });
+      diff.conflicts.forEach((c, i) => {
+        assert.notEqual(es.conflicts[i].itemLabel, c.itemLabel, `${a} vs ${b} conflict label`);
+        assert.ok(es.conflicts[i].message.startsWith(`${es.conflicts[i].itemLabel}:`), es.conflicts[i].message);
+      });
+    }
+  }
+});
+
+test("i18n parity: ES batch display is localized while CSV and JSON exports stay byte-stable English", () => {
+  const result = runBatchFromCsv(SAMPLE_BATCH_CSV);
+  const csvBefore = batchResultToCsv(result);
+  const jsonBefore = batchResultToJson(result);
+  const es = localizeBatchResult(result, "es");
+  const html = renderBatchReport(es, "es");
+  assert.ok(!html.includes("Recycle in Curbside Cart"), "ES batch table shows the Spanish badge");
+  assert.ok(html.includes(CATALOG_ES[result.rows.find((r) => r.engineInput && CATALOG_ES[r.engineInput.barcode]).engineInput.barcode]));
+  assert.equal(batchResultToCsv(result), csvBefore);
+  assert.equal(batchResultToJson(result), jsonBefore);
+  assert.equal(localizeBatchResult(result, "en"), result);
+});
+
+test("i18n parity: every passing in-page self-test has a Spanish description; failures stay verbatim", async () => {
+  const { runSelfTests } = await import("../js/bincheck-selftest.js");
+  const run = runSelfTests();
+  for (const entry of run.results) {
+    assert.ok(SELFTEST_DETAILS_ES[entry.id], `SELFTEST_DETAILS_ES is missing ${entry.id}`);
+    const es = selfTestDetailEs(entry);
+    assert.notEqual(es, entry.detail, `${entry.id} is translated`);
+    const hex = /([0-9a-f]{16})\.\.\.$/.exec(entry.detail);
+    if (hex) assert.ok(es.includes(hex[1]), `${entry.id} keeps its digest prefix`);
+  }
+  const failed = { id: "audit.csv.crlf", pass: false, detail: "Threw: boom" };
+  assert.equal(selfTestDetailEs(failed), "Threw: boom");
+  assert.equal(Object.keys(SELFTEST_DETAILS_ES).length, run.results.length);
+});
+
+test("render: stacked diff metric cells name their profile column on phones", async () => {
+  const { renderMunicipalDiff } = await import("../src/workbench-render.js");
+  for (const lang of ["en", "es"]) {
+    const diff = localizeDiff(compareProfiles("Riverside-tx", "houston-tx", "tricky-household"), lang);
+    const html = renderMunicipalDiff(diff, lang);
+    const metricCells = html.split("diff-metrics-table")[1].split("</table>")[0].match(/<td [^>]*>/g);
+    assert.equal(metricCells.length, 8 * 3);
+    for (const cell of metricCells) assert.match(cell, /data-label="[^"]+"/, cell);
+  }
 });

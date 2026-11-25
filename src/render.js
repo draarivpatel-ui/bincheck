@@ -213,6 +213,12 @@ export function renderImpact(impact, lang = "en") {
     </div>`;
 }
 
+/** Compact verdict pill for batch table cells: the stream's one color, icon and verdict word. */
+export function renderBatchVerdict(stream, lang = "en") {
+  const v = verdictFor(stream, lang);
+  return `<span class="batch-verdict verdict-${escapeHtml(v.key)}" data-stream="${escapeHtml(stream)}">${renderVerdictIcon(v.key, 13)}<span>${escapeHtml(v.word)}</span></span>`;
+}
+
 export function renderStreamBadge(stream, label) {
   return `<span class="stream-badge stream-${escapeHtml(stream)}">${getStreamSvgIcon(stream)}<span>${escapeHtml(label)}</span></span>`;
 }
@@ -590,15 +596,15 @@ export function renderBatchReport(result, lang = "en") {
       const ho = row.cities ? row.cities["houston-tx"] : null;
       const cell = (city) =>
         city
-          ? `${renderStreamBadge(city.stream, city.badgeLabel)}<span class="cell-sub tabular">${escapeHtml(t(lang, "batch.risk", { n: city.riskScore }))}</span>`
+          ? `<div class="batch-cell">${renderBatchVerdict(city.stream, lang)}<span class="batch-verdict-label">${escapeHtml(city.badgeLabel)}</span><span class="cell-sub tabular">${escapeHtml(t(lang, "batch.risk", { n: city.riskScore }))}</span></div>`
           : `<span class="cell-sub">${escapeHtml(t(lang, "batch.notEvaluated"))}</span>`;
       return `<tr class="row-${escapeHtml(row.status)}">
         <td data-label="${escapeHtml(t(lang, "batch.line"))}" class="tabular">${row.line}</td>
-        <td data-label="${escapeHtml(t(lang, "batch.item"))}"><strong>${escapeHtml(row.label || row.itemTitle || t(lang, "batch.unlabeled"))}</strong>${row.itemTitle && row.label ? `<span class="cell-sub">${escapeHtml(row.itemTitle)}</span>` : ""}</td>
+        <td data-label="${escapeHtml(t(lang, "batch.item"))}"><div class="batch-cell"><strong>${escapeHtml(row.label || row.itemTitle || t(lang, "batch.unlabeled"))}</strong>${row.itemTitle && row.label ? `<span class="cell-sub">${escapeHtml(row.itemTitle)}</span>` : ""}</div></td>
         <td data-label="${escapeHtml(t(lang, "batch.evidence"))}"><span class="confidence-pill confidence-${escapeHtml(row.confidence)}">${escapeHtml(confLabel(row.confidence, lang))}</span></td>
         <td data-label="Riverside">${cell(sl)}</td>
         <td data-label="Houston">${cell(ho)}</td>
-        <td data-label="${escapeHtml(t(lang, "batch.status"))}"><span class="status-pill status-${escapeHtml(row.status)}">${escapeHtml(statusLabel(row.status, lang))}</span>${row.streamsDiverge ? `<span class="cell-sub">${escapeHtml(t(lang, "batch.citiesDiffer"))}</span>` : ""}</td>
+        <td data-label="${escapeHtml(t(lang, "batch.status"))}"><div class="batch-cell"><span class="status-pill status-${escapeHtml(row.status)}">${escapeHtml(statusLabel(row.status, lang))}</span>${row.streamsDiverge ? `<span class="cell-sub">${escapeHtml(t(lang, "batch.citiesDiffer"))}</span>` : ""}</div></td>
       </tr>`;
     })
     .join("");

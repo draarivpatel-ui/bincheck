@@ -6,6 +6,7 @@
   --muted: #3D5249;
   --line: #CEC9B8;
   --line-strong: #0E1B16;
+  --control-border: #857F6B;
   --accent: #047857;
   --accent-hover: #065F46;
   --accent-wash: #D1FAE5;
@@ -79,10 +80,18 @@ body {
 
 html {
   scroll-padding-top: 1rem;
+  scroll-padding-bottom: 4.5rem;
+}
+
+/* Keep keyboard focus and anchor targets clear of the sticky header and the bottom notice toast. */
+@media (min-width: 1100px) {
+  html {
+    scroll-padding-top: 7.5rem;
+  }
 }
 
 [id$="-heading"] {
-  scroll-margin-top: 7rem;
+  scroll-margin-top: 0.75rem;
 }
 
 body {
@@ -173,7 +182,7 @@ body {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line-strong);
-  padding: 0.95rem 0;
+  padding: 0.7rem 0 0.35rem;
   position: sticky;
   top: 0;
   z-index: 30;
@@ -184,7 +193,7 @@ body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.6rem 1rem;
 }
 
 .brand-mark-row {
@@ -209,7 +218,7 @@ body {
 
 .spec-index-code {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--accent);
   background: var(--accent-wash);
@@ -505,7 +514,7 @@ body {
   align-items: center;
   gap: 0.42rem;
   background: var(--ground);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   color: var(--ink);
   padding: 0.48rem 0.85rem;
   border-radius: var(--radius-sm);
@@ -561,7 +570,7 @@ body {
   text-align: left;
   font-family: var(--font-sans);
   background: var(--ground);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   padding: 0.85rem 0.95rem;
   cursor: pointer;
@@ -688,7 +697,7 @@ body {
 
 .rule-id {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--accent-hover);
   background: var(--accent-wash);
@@ -730,7 +739,7 @@ body {
 
 .rule-source {
   margin: 0.65rem 0 0;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
@@ -854,7 +863,7 @@ body {
   padding: 0.58rem 0.75rem 0.58rem 2.2rem;
   font-family: var(--font-mono);
   font-size: 0.9rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
@@ -865,7 +874,7 @@ body {
   padding: 0.58rem 0.75rem;
   font-family: var(--font-sans);
   font-size: 0.9rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
@@ -901,7 +910,7 @@ body {
   gap: 0.42rem;
   background: var(--surface);
   color: var(--ink);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   padding: 0.55rem 0.88rem;
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
@@ -958,7 +967,7 @@ body {
   flex-wrap: wrap;
   gap: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
@@ -1016,7 +1025,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 0.5rem 0.25rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--ground);
   color: var(--ink);
@@ -1518,7 +1527,7 @@ kbd {
   min-width: 1.35rem;
   padding: 0.05rem 0.38rem;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.35;
   text-align: center;
@@ -1560,20 +1569,27 @@ button:disabled {
 /* ---------- Section navigation ---------- */
 .section-nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.25rem 0.35rem;
-  padding-top: 0.55rem;
-  padding-bottom: 0.1rem;
+  gap: 0.15rem;
+  margin-top: 0.5rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.2rem;
+  border-top: 1px solid var(--line);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
 
 .nav-link {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.3rem 0.65rem;
+  flex-shrink: 0;
+  padding: 0.3rem 0.55rem;
   font-family: var(--font-sans);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
   font-weight: 600;
   color: var(--ink);
   text-decoration: none;
@@ -1590,6 +1606,45 @@ button:disabled {
 
 .nav-help {
   margin-left: auto;
+}
+
+/* Focus rings inside the scrolling nav strip sit inset so the scroller never clips them. */
+.section-nav .nav-link:focus-visible {
+  outline-offset: -3px;
+  box-shadow: none;
+}
+
+.section-nav input:focus-visible {
+  box-shadow: none;
+}
+
+.section-nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* Below 1280px the print action collapses to its icon; the label stays as the accessible name. */
+@media (max-width: 1279px) {
+  .print-trigger-btn {
+    position: relative;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .print-trigger-btn > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+/* The header only sticks where it fits in two compact rows. */
+@media (max-width: 1099px) {
+  .site-header {
+    position: static;
+  }
 }
 
 /* ---------- Notice bar ---------- */
@@ -1824,7 +1879,7 @@ button:disabled {
 
 .csv-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.35rem;
   align-items: start;
 }
@@ -1839,7 +1894,7 @@ button:disabled {
   line-height: 1.5;
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   resize: vertical;
 }
@@ -1999,27 +2054,27 @@ p.kpi-hint {
 
 .stream-seg.stream-RECYCLE_CART,
 .legend-dot.stream-RECYCLE_CART {
-  background: var(--accent);
+  background: var(--v-recycle);
 }
 
 .stream-seg.stream-GREEN_WASTE,
 .legend-dot.stream-GREEN_WASTE {
-  background: #0F766E;
+  background: var(--v-yard);
 }
 
 .stream-seg.stream-SPLIT_DISPOSAL,
 .legend-dot.stream-SPLIT_DISPOSAL {
-  background: var(--amber);
+  background: var(--v-split);
 }
 
 .stream-seg.stream-SPECIAL_DROPOFF,
 .legend-dot.stream-SPECIAL_DROPOFF {
-  background: var(--hazard);
+  background: var(--v-dropoff);
 }
 
 .stream-seg.stream-TRASH_CART,
 .legend-dot.stream-TRASH_CART {
-  background: #7F1D1D;
+  background: var(--v-trash);
 }
 
 .stream-legend {
@@ -2226,7 +2281,7 @@ p.kpi-hint {
   display: inline-block;
   margin-left: 0.4rem;
   padding: 0.02rem 0.4rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
   border: 1px solid var(--line);
@@ -2237,8 +2292,10 @@ p.kpi-hint {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.82rem;
+  flex-shrink: 0;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
@@ -2280,16 +2337,43 @@ button:not([aria-keyshortcuts]) kbd {
     position: static;
   }
 
+  /* Phone header: brand, language and print share one row; the city switch gets its own row. */
   .header-actions {
-    width: 100%;
+    display: contents;
   }
 
-  .city-switcher {
+  .brand-corner {
+    order: 0;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .brand-mark-row {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+  }
+
+  .lang-switcher {
+    order: 1;
+  }
+
+  .header-inner .print-trigger-btn {
+    order: 2;
+    flex: 0 0 auto;
+  }
+
+  .header-actions > .city-switcher:not(.lang-switcher) {
+    order: 3;
     width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .city-btn {
     flex: 1 1 auto;
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
   }
 
   .nav-help {
@@ -2344,7 +2428,10 @@ button:not([aria-keyshortcuts]) kbd {
     border-bottom: 0;
   }
 
-  .stack-table .stream-badge {
+  .stack-table .stream-badge,
+  .stack-table .confidence-pill,
+  .stack-table .status-pill,
+  .stack-table .stream-tag {
     justify-self: start;
   }
 }
@@ -2511,6 +2598,7 @@ button:not([aria-keyshortcuts]) kbd {
   font-weight: 600;
   letter-spacing: 0;
   white-space: nowrap;
+  max-width: 100%;
   vertical-align: 0.08em;
   font-variant-numeric: tabular-nums;
 }
@@ -2626,7 +2714,7 @@ button:not([aria-keyshortcuts]) kbd {
 
 .cart-axis {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   fill: var(--muted);
 }
 
@@ -2776,7 +2864,7 @@ button:not([aria-keyshortcuts]) kbd {
 .verdict-chip-city {
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  opacity: 0.85;
+  font-weight: 500;
 }
 
 /* Search ------------------------------------------------------------ */
@@ -2836,7 +2924,7 @@ button:not([aria-keyshortcuts]) kbd {
   gap: 0.75rem;
   width: 100%;
   padding: 0.65rem 0.8rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
@@ -3158,7 +3246,7 @@ button:not([aria-keyshortcuts]) kbd {
 
 .diff-weight {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--muted);
   font-weight: 500;
 }
@@ -3244,7 +3332,7 @@ tr.diff-row-changed > td {
 .conflict-kind {
   display: inline-block;
   margin-right: 0.35rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
   border: 1px solid currentColor;
   border-radius: 999px;
@@ -3262,7 +3350,7 @@ tr.diff-row-changed > td {
 
 .cascade-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 1rem;
   margin-top: 1rem;
 }
@@ -3304,14 +3392,15 @@ tr.diff-row-changed > td {
 }
 
 .cascade-count-tag {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--muted);
   font-weight: 500;
   margin-left: 0.35rem;
+  white-space: nowrap;
 }
 
 .cascade-headline {
-  margin: 0.25rem 0 0;
+  margin: 0;
   font-size: 0.8rem;
   color: var(--muted);
 }
@@ -3358,7 +3447,6 @@ tr.diff-row-changed > td {
   align-items: flex-start;
   font-size: 0.8rem;
   color: var(--muted);
-  opacity: 0.55;
 }
 
 .cascade-stage.is-reached {
@@ -3369,9 +3457,9 @@ tr.diff-row-changed > td {
 .cascade-stage-at {
   flex-shrink: 0;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  border: 1px solid currentColor;
+  border: 1px dashed currentColor;
   border-radius: 999px;
   padding: 0 0.4rem;
   margin-top: 0.1rem;
@@ -3380,6 +3468,7 @@ tr.diff-row-changed > td {
 .cascade-stage.is-reached .cascade-stage-at {
   background: var(--hazard);
   border-color: var(--hazard);
+  border-style: solid;
   color: #FDFCF8;
 }
 
@@ -3432,7 +3521,7 @@ tr.diff-row-changed > td {
 }
 
 .audit-sig-list dt {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.05em;
   color: var(--muted);
 }
@@ -3526,7 +3615,7 @@ tr.diff-row-changed > td {
 
 .selftest-id {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -3562,4 +3651,179 @@ tr.diff-row-changed > td {
   .selftest-panel-outer {
     display: none !important;
   }
+}
+
+/* ---------- Batch table verdict pills (one color and icon per stream, as in DESIGN.md) ---------- */
+.batch-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--v);
+  background: var(--v-wash);
+  border: 1px solid var(--v);
+  white-space: nowrap;
+}
+
+.batch-verdict .verdict-icon {
+  flex-shrink: 0;
+}
+
+.batch-cell {
+  min-width: 0;
+}
+
+.batch-verdict-label {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+/* ---------- Kitchen guide status icons (shape, not color alone) ---------- */
+.table-status::before {
+  content: "";
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.35em;
+  vertical-align: -0.1em;
+  background: currentColor;
+  -webkit-mask: var(--status-icon) center / contain no-repeat;
+  mask: var(--status-icon) center / contain no-repeat;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.table-status.status-ok {
+  --status-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 8.6l3.6 3.4L13.5 4.4' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.table-status.status-warn {
+  --status-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zM7 4h2v5.2H7zm0 6.6h2v2H7z'/%3E%3C/svg%3E");
+}
+
+.table-status.status-stop {
+  --status-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 3.5l9 9M12.5 3.5l-9 9' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* ---------- Cascade lab summary row ---------- */
+.cascade-lab-summary .impact-bar-row {
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+}
+
+@media (max-width: 640px) {
+  .cascade-lab-summary .impact-bar-row {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
+  .cascade-lab-summary .impact-bar-label {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- Telemetry figures stay on one line ---------- */
+.telemetry-cell dd {
+  white-space: nowrap;
+}
+
+/* ---------- Tactile press feedback ---------- */
+.primary-btn:active,
+.secondary-btn:active,
+.demo-pill:active,
+.resin-btn:active,
+.guided-card:active,
+.search-hit:active,
+.city-btn:active {
+  transform: translateY(1px);
+}
+
+/* ---------- Phones: long localized labels wrap inside their controls ---------- */
+@media (max-width: 480px) {
+  .primary-btn,
+  .secondary-btn {
+    white-space: normal;
+    text-align: center;
+  }
+
+  .batch-actions > .secondary-btn {
+    width: 100%;
+  }
+
+  .cheatsheet-header .data-badge {
+    margin-left: 0;
+    white-space: normal;
+  }
+}
+
+/* Single-letter shortcut hints are keyboard affordances; touch screens do not need them. */
+@media (pointer: coarse) {
+  button kbd {
+    display: none;
+  }
+}
+
+/* Print: a Letter page is narrower than the 760px stacking breakpoint, so restore real table
+   layout or the 1-page kitchen guide spills onto three pages as phone cards. */
+@media print {
+  .stack-table {
+    display: table !important;
+    width: 100%;
+  }
+
+  .stack-table thead {
+    display: table-header-group !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    clip: auto !important;
+  }
+
+  .stack-table tbody {
+    display: table-row-group !important;
+  }
+
+  .stack-table tr {
+    display: table-row !important;
+    margin: 0 !important;
+    border: 0 !important;
+  }
+
+  .stack-table td,
+  .stack-table tbody th {
+    display: table-cell !important;
+  }
+
+  .stack-table td::before {
+    content: none !important;
+  }
+
+  .print-guide .comparison-table {
+    font-size: 8.5pt;
+    line-height: 1.35;
+  }
+
+  .print-guide .comparison-table th,
+  .print-guide .comparison-table td {
+    padding: 0.3rem 0.45rem;
+  }
+
+  .print-guide .table-status {
+    font-size: 8.5pt;
+    padding: 0.06rem 0.3rem;
+  }
+
+  .print-guide .comparison-table tr {
+    break-inside: avoid;
+  }
+}
+
+/* The status toast is announced and auto-dismissed; it never swallows a click on what is beneath it. */
+.notice-bar {
+  pointer-events: none;
 }

@@ -26,7 +26,8 @@ import {
   conditionLabelEs,
   profileNameEs,
   CATALOG_ES,
-  BASKETS_ES
+  BASKETS_ES,
+  localizeBatchResult
 } from "../js/bincheck-i18n.js";
 import { buildSignedAudit, signedAuditToJson, signedAuditToCsv, signedAuditToMarkdown, verifySignedAudit } from "../js/bincheck-audit.js";
 import { runSelfTests } from "../js/bincheck-selftest.js";
@@ -502,7 +503,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
       els.csvInput.value = state.csvText;
     }
     if (state.batchResult) {
-      els.csvResults.innerHTML = renderBatchReport(state.batchResult, lang);
+      els.csvResults.innerHTML = renderBatchReport(localizeBatchResult(state.batchResult, lang), lang);
     } else {
       els.csvResults.innerHTML = `<p class="empty-batch-msg">${escapeHtml(t(lang, "csv.empty"))}</p>`;
     }
@@ -671,7 +672,7 @@ export function createApp({ document: doc, window: win, deps = {} }) {
     const body = doc.body;
     if (mode === "report") {
       const vm = selectViewModel(state);
-      els.printReport.innerHTML = renderPrintReport(vm, state.batchResult, state.language);
+      els.printReport.innerHTML = renderPrintReport(vm, localizeBatchResult(state.batchResult, state.language), state.language);
     }
     body.setAttribute("data-print-mode", mode);
     const cleanup = () => {

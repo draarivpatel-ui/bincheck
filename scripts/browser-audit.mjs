@@ -470,6 +470,7 @@ async function main() {
 
     for (const viewport of [
       { width: 1440, height: 900, dsf: 1, mobile: false },
+      { width: 820, height: 1180, dsf: 2, mobile: true },
       { width: 390, height: 844, dsf: 3, mobile: true }
     ]) {
       await runViewportAudit({ cdp, sessionId, baseUrl, viewport, downloadDir, server });
