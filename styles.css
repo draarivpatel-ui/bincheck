@@ -1578,7 +1578,8 @@ button:disabled {
   border-top: 1px solid var(--line);
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--control-border) transparent;
 }
 
 .nav-link {
@@ -1619,7 +1620,21 @@ button:disabled {
 }
 
 .section-nav::-webkit-scrollbar {
-  display: none;
+  height: 6px;
+}
+
+/* Mouse and trackpad screens wrap the strip instead of scrolling it, so nothing hides off the edge. */
+@media (hover: hover) and (pointer: fine) {
+  .section-nav {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+@media (min-width: 1100px) and (max-width: 1279px) {
+  html {
+    scroll-padding-top: 9.5rem;
+  }
 }
 
 /* Below 1280px the print action collapses to its icon; the label stays as the accessible name. */
@@ -3821,9 +3836,4 @@ tr.diff-row-changed > td {
   .print-guide .comparison-table tr {
     break-inside: avoid;
   }
-}
-
-/* The status toast is announced and auto-dismissed; it never swallows a click on what is beneath it. */
-.notice-bar {
-  pointer-events: none;
 }

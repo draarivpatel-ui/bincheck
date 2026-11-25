@@ -72,8 +72,8 @@ The organics stream reuses the yard-waste palette (`#3F6212`, leaf icon) so its 
 
 ## Craft pass (2026-11-25)
 
-- **Control borders.** Inputs, selects, textareas and outline buttons use `--control-border` (`#857F6B`, at least 3.2:1 on `--surface`, `--ground` and `--surface-alt`) so every control meets WCAG 1.4.11; `--line` stays the 1px hairline for cards and tables.
-- **Header.** One compact row of brand, language, jurisdiction and print, with the section nav as a single scrolling strip. It is sticky only from 1100px, where it is two rows; below 1280px the print action is icon-only with its label kept as the accessible name. On phones, brand, language and print share the first row.
+- **Control borders.** Text inputs, selects, textareas, outline buttons, demo pills, resin buttons, guided cards and search hits use `--control-border` (`#857F6B`, at least 3.2:1 on `--surface`, `--ground` and `--surface-alt`, measured for WCAG 1.4.11). Sliders, checkboxes and the segmented switches were not part of that measurement. `--line` stays the 1px hairline for cards and tables.
+- **Header.** One compact row of brand, language, jurisdiction and print, with the section nav as one row: on mouse and trackpad screens it wraps when it does not fit, on touch screens it scrolls sideways. It is sticky only from 1100px, where it is two rows; below 1280px the print action is icon-only with its label kept as the accessible name. On phones, brand, language and print share the first row.
 - **Batch table verdicts.** Each city cell shows the stream's verdict pill (one color and icon per stream, as in the verdict table above) with the city's own label underneath, instead of a wrapped multi-line badge.
 - **Kitchen guide statuses** carry a check, alert or cross icon as well as color, and the guide restores real table layout in print so it fits one Letter page in English and Spanish.
-- **Type floor.** No UI text below 12px (`0.75rem`).
+- **Type floor.** HTML UI text is at least 12px (`0.75rem`); the cart chart's SVG axis labels are 11px.
