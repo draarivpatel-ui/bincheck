@@ -146,6 +146,21 @@ test('hygiene: both hero assets have correct formats and no image metadata segme
   assert.deepEqual([...chunks], ['IHDR', 'IDAT', 'IEND']);
 });
 
+test('hygiene: interaction and print accessibility regressions stay pinned', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  assert.match(css, /input::placeholder,\s*textarea::placeholder\s*\{[^}]*color:\s*var\(--muted\)[^}]*opacity:\s*1/s);
+  assert.match(css, /\.skip-link\s*\{[^}]*min-height:\s*2\.75rem/s);
+  assert.match(css, /\.city-btn\s*\{[^}]*min-width:\s*2\.75rem[^}]*min-height:\s*2\.75rem/s);
+  assert.match(css, /\.secondary-btn\s*\{[^}]*min-height:\s*2\.75rem/s);
+  assert.match(css, /\.nav-link\s*\{[^}]*min-height:\s*2\.75rem/s);
+  assert.match(css, /\.demo-pill\s*\{[^}]*min-height:\s*2\.75rem/s);
+  assert.match(css, /\.shortcut-toggle\s*\{[^}]*min-height:\s*2\.75rem/s);
+  assert.match(css, /\.footer-link\s*\{[^}]*min-height:\s*2\.75rem/s);
+  assert.match(css, /input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\),\s*select\s*\{\s*min-height:\s*2\.75rem/s);
+  assert.match(css, /@page\s*\{\s*margin:\s*12mm/s);
+  assert.match(css, /@media print\s*\{\s*\.print-guide\s*\{\s*break-inside:\s*avoid/s);
+});
+
 test('hygiene: no temporary files, dependencies, or generated caches remain', () => {
   assert.deepEqual(repositoryFiles().stray, []);
 });
