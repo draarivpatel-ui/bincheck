@@ -455,3 +455,12 @@ test("hygiene: every keyboard shortcut is exposed through aria-keyshortcuts", ()
     assert.ok(/aria-keyshortcuts/.test(tag[0]), `${mode} button has a declared shortcut`);
   }
 });
+
+test('batch csv neutralizes formula triggers behind invisible Unicode', async () => {
+  const { batchResultToCsv } = await import("../js/bincheck-batch.js");
+  const csv = batchResultToCsv({ rows: [{
+    line: 1, label: "\u200B=cmd", status: "ok", issues: [], evidenceBasis: "", confidence: 1,
+    itemTitle: "x", materialId: "m", cities: null
+  }] });
+  assert.ok(csv.includes("'\u200B=cmd"), csv);
+});

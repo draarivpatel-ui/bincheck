@@ -1046,7 +1046,7 @@ export function runBatchFromBytes(input) {
 
 function guardFormula(value) {
   const text = String(value ?? "");
-  return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return /^[\s\u0085\u180E\u200B\u200C\u200D\u2060\uFEFF]*[=+\-@\t\r]/.test(text) ? `'${text}` : text;
 }
 
 function csvCell(value) {
