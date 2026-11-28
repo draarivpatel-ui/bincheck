@@ -127,7 +127,7 @@ test("report json: deterministic, parseable, and free of clock fields by default
   const parsed = JSON.parse(json);
   assert.equal(parsed.schema, INSPECTION_REPORT_SCHEMA);
   assert.equal(parsed.generatedOn, null);
-  assert.deepEqual(Object.keys(parsed.cities).sort(), ["houston-tx", "Riverside-tx"]);
+  assert.deepEqual(new Set(Object.keys(parsed.cities)), new Set(["houston-tx", "Riverside-tx"]));
   assert.equal(inspectionReportToJson(report), json);
 });
 

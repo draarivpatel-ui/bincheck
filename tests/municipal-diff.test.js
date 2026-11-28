@@ -36,8 +36,8 @@ test("profiles: exactly six MRF profiles, two snapshot-backed and four archetype
   assert.equal(MRF_PROFILE_IDS.filter((id) => MRF_PROFILES[id].kind === "snapshot").length, 2);
   assert.equal(ARCHETYPE_PROFILE_IDS.length, 4);
   assert.deepEqual(
-    MRF_PROFILE_IDS.filter((id) => MRF_PROFILES[id].kind === "snapshot").sort(),
-    ["houston-tx", "Riverside-tx"]
+    new Set(MRF_PROFILE_IDS.filter((id) => MRF_PROFILES[id].kind === "snapshot")),
+    new Set(["houston-tx", "Riverside-tx"])
   );
 });
 
