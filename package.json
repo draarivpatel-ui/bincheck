@@ -6,6 +6,7 @@
   "main": "src/bincheck-engine.js",
   "scripts": {
     "test": "node scripts/run-tests.mjs",
+    "test:fuzz": "node --test test/fuzz.test.js",
     "verify:sources": "node scripts/verify-city-sources.js --offline",
     "verify:live": "node scripts/verify-city-sources.js --live",
     "benchmark": "node scripts/run-benchmark.js",
@@ -19,5 +20,8 @@
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "fast-check": "4.10.3"
   }
 }

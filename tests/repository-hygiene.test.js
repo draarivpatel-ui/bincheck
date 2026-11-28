@@ -42,10 +42,10 @@ function repositoryFiles() {
   const stray = [];
   const visit = (directory) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (entry.name === '.git') continue;
+      if (entry.name === '.git' || entry.name === 'node_modules') continue;
       const absolute = path.join(directory, entry.name);
       const relative = path.relative(root, absolute);
-      if (entry.isSymbolicLink() || ['.DS_Store', 'node_modules', '__pycache__', '.cache', '.pytest_cache', 'coverage'].includes(entry.name) || /\.(?:tmp|log|bak|orig|rej|pyc)$/i.test(entry.name)) {
+      if (entry.isSymbolicLink() || ['.DS_Store', '__pycache__', '.cache', '.pytest_cache', 'coverage'].includes(entry.name) || /\.(?:tmp|log|bak|orig|rej|pyc)$/i.test(entry.name)) {
         stray.push(relative);
       } else if (entry.isDirectory()) {
         visit(absolute);
@@ -161,7 +161,7 @@ test('hygiene: interaction and print accessibility regressions stay pinned', () 
   assert.match(css, /@media print\s*\{\s*\.print-guide\s*\{\s*break-inside:\s*avoid/s);
 });
 
-test('hygiene: no temporary files, dependencies, or generated caches remain', () => {
+test('hygiene: no temporary files or generated caches remain', () => {
   assert.deepEqual(repositoryFiles().stray, []);
 });
 
